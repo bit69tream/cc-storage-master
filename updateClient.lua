@@ -1,6 +1,6 @@
 GLB = {
   modem = peripheral.wrap("back"),
-  server = nil,
+  server = rednet.lookup("storage", "main"),
 }
 
 if GLB.modem == nil then
@@ -15,7 +15,6 @@ end
 
 setupRednetClient()
 
-GLB.server = rednet.lookup("storage", "main")
 if GLB.server == nil then
   error("Please start the server first")
   os.exit(69)
