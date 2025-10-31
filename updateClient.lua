@@ -36,7 +36,7 @@ local function receiveUpdate()
     os.exit(69)
   end
 
-  if msg.code ~= "CLIENT_UPDATE" then
+  if msg.code ~= "CLIENT_DATA" then
     if msg.code == "ERROR" then
       error("server responded with: " .. msg.error)
       os.exit(69)
