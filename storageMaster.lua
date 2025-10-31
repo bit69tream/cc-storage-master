@@ -112,6 +112,7 @@ MESSAGE_SWITCH = {
     local file = fs.open("/disk/storageClient.lua", "r")
     if file == nil then
       error("/disk/storageClient.lua isn't accessible")
+      rednet.send(id, { code = "ERROR", error = "Unable to send the client program" })
     end
     local data = file.readAll()
     file.close()

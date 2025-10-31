@@ -2,6 +2,7 @@ MODEM = peripheral.wrap("back")
 
 if MODEM == nil then
   error("your pocket computer needs a modem")
+  os.exit(69)
 end
 
 local function setupRednetClient()
@@ -14,6 +15,7 @@ setupRednetClient()
 GLB.server = rednet.lookup("storage", "main")
 if GLB.server == nil then
   error("Please start the server first")
+  os.exit(69)
 end
 
 local function requestUpdate()
@@ -25,14 +27,27 @@ local function receiveUpdate()
   local id, msg = rednet.receive("storage", 5)
   if id == nil then
     error("the server is probably down.. :(")
+    os.exit(69)
   end
-  if msg == nil or msg.data == nil then
+  if msg == nil then
     error("the server is set up incorrectly")
+    os.exit(69)
+  end
+
+  if msg.code ~= "CLIENT_UPDATE" then
+    if msg.code == "ERROR" then
+      error("server responded with: " .. msg.error)
+      os.exit(69)
+    end
+
+    error("something's not right with the server")
+    os.exit(69)
   end
 
   local file = fs.open("storageClient.lua", "w")
   if file == nil then
     error("could not open storageClient.lua for writing")
+    os.exit(69)
   end
   file.write(msg.data)
   file.close()
