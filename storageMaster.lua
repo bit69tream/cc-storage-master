@@ -1,13 +1,18 @@
+-- config
+CONFIG = {
+  invManagerChestName = "quark:variant_chest_0"
+}
+
 -- global variables unrelated to UI
 GLB = {
   -- list of wrapped storage peripherals
   storage = {},
+  invManagerChest = {},
+  modem = {},
 }
 
 -- global variables related to UI
-UISTATE = {
-
-}
+UISTATE = {}
 
 function DUMP(o)
   if type(o) == 'table' then
@@ -22,6 +27,10 @@ function DUMP(o)
   end
 end
 
+local function findWirelessModem()
+  return peripheral.find("modem", function(_, modem) return modem.isWireless() end)
+end
+
 local function collectStorage()
   local periheralList = peripheral.getNames()
   local storage = {}
@@ -29,7 +38,7 @@ local function collectStorage()
   for i = 1, #periheralList do
     local p = periheralList[i]
     local _, type = peripheral.getType(p)
-    if type == "inventory" then
+    if p ~= CONFIG.invManagerChestName and type == "inventory" then
       table.insert(storage, peripheral.wrap(p))
     end
   end
@@ -73,24 +82,57 @@ local function getItemList()
   return items
 end
 
+local function setupRedNetServer()
+  os.setComputerLabel("StorageMaster")
+  rednet.open(peripheral.getName(GLB.modem))
+  rednet.host("storage", "main")
+end
+
 local function init()
   term.clear()
   term.setCursorPos(1, 1)
-  term.write("initializing")
+  print("initializing...")
 
   GLB.storage = collectStorage()
-  term.write(".")
-  term.setCursorPos(1, 2)
+  GLB.invManagerChest = peripheral.wrap(CONFIG.invManagerChestName)
+  print("collected " .. #GLB.storage .. " containers")
+
+  GLB.modem = findWirelessModem()
+  setupRedNetServer()
+  print("set up wireless communication")
 end
 
 init()
 
-print(DUMP(GLB.storage))
+MESSAGE_SWITCH = {
+  ["PING"] = function (id, _)
+    rednet.send(id, { code = "PONG" }, "storage")
+  end,
+  ["CLIENT"] = function (id, _)
+    local file = fs.open("/disk/storageClient.lua", "r")
+    if file == nil then
+      error("/disk/storageClient.lua isn't accessible")
+    end
+    local data = file.readAll()
+    file.close()
 
-local amog = getItemList()
-
-for i = 1, #amog do
-  if amog[i].name == "minecraft:basalt" then
-    print(amog[i].count)
+    rednet.send(id, { code = "CLIENT_DATA", data = data }, "storage")
   end
+}
+
+while true do
+  local id, msg = rednet.receive("storage")
+
+  if id == nil then
+    goto continue
+  end
+
+  if msg ~= nil and MESSAGE_SWITCH[msg.code] ~= nil then
+    print("received message", msg.code, "from", id)
+    MESSAGE_SWITCH[msg.code](id, msg)
+  else
+    rednet.send(id, { code = "ERROR", error = "unknown message type" })
+  end
+
+  ::continue::
 end
