@@ -1,23 +1,49 @@
-MODEM = peripheral.wrap("back")
+MODEM_PERIPHERAL = "back"
+PROTOCOL = "storage"
+GLB = {
+  modem = nil,
+  server = nil,
+}
+
+local function checkServer()
+  term.write("checking server....")
+
+  parallel.waitForAll(function ()
+    rednet.send(GLB.server, { code = "PING" }, PROTOCOL)
+  end,
+    function ()
+      local id, msg = rednet.receive(PROTOCOL, 2)
+
+      if id == nil or msg == nil then
+        error("The server isn't running")
+      end
+
+      if msg.code ~= "PONG" then
+        error("The server isn't set up correctly")
+      end
+
+      print("the server is running correctly")
+    end)
+end
 
 local function setupRednetClient()
-  os.setComputerLabel("StorageClient")
-  rednet.open(peripheral.getName(MODEM))
+  GLB.modem = peripheral.wrap(MODEM_PERIPHERAL)
+  os.setComputerLabel("Storage Client")
+  rednet.open(MODEM_PERIPHERAL)
+
+  GLB.server = rednet.lookup(PROTOCOL, "main")
+  if GLB.server == nil then
+    error("Please set the server up first")
+  end
 end
 
-setupRednetClient()
+local function init()
+  print("initializing...")
 
-SERVER = rednet.lookup("storage", "main")
-if SERVER == nil then
-  error("Please start the server first")
+  setupRednetClient()
+  print("configured wireless connection")
+
+  checkServer()
 end
 
-rednet.send(SERVER, { code = "PING" }, "storage")
-local id, msg = rednet.receive("storage")
-if id == nil or id ~= SERVER then
-  error("sussy")
-end
-if msg == nil then
-  error("expected PONG")
-end
-textutils.serialize(msg)
+init()

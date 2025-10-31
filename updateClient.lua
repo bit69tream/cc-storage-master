@@ -11,14 +11,14 @@ end
 
 setupRednetClient()
 
-SERVER = rednet.lookup("storage", "main")
-if SERVER == nil then
+GLB.server = rednet.lookup("storage", "main")
+if GLB.server == nil then
   error("Please start the server first")
 end
 
 local function requestUpdate()
   print("requesting client update")
-  rednet.send(SERVER, { code = "CLIENT" }, "storage")
+  rednet.send(GLB.server, { code = "CLIENT" }, "storage")
 end
 
 local function receiveUpdate()
