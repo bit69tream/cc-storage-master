@@ -1,13 +1,16 @@
-MODEM = peripheral.wrap("back")
+GLB = {
+  modem = peripheral.wrap("back"),
+  server = nil,
+}
 
-if MODEM == nil then
+if GLB.modem == nil then
   error("your pocket computer needs a modem")
   os.exit(69)
 end
 
 local function setupRednetClient()
   os.setComputerLabel("StorageClient")
-  rednet.open(peripheral.getName(MODEM))
+  rednet.open(peripheral.getName(GLB.modem))
 end
 
 setupRednetClient()
