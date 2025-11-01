@@ -1,14 +1,14 @@
--- config
-CONFIG = {
-  invManagerChestName = "quark:variant_chest_0"
-}
+PROTOCOL = "storage"
 
 -- global variables unrelated to UI
 GLB = {
   -- list of wrapped storage peripherals
   storage = {},
-  invManagerChest = {},
   modem = {},
+  dnsId = {},
+
+  invBuffer = "",
+  ownName = "",
 }
 
 -- global variables related to UI
@@ -38,7 +38,7 @@ local function collectStorage()
   for i = 1, #periheralList do
     local p = periheralList[i]
     local _, type = peripheral.getType(p)
-    if p ~= CONFIG.invManagerChestName and type == "inventory" then
+    if p ~= GLB.invBuffer and type == "inventory" then
       table.insert(storage, peripheral.wrap(p))
     end
   end
@@ -83,33 +83,91 @@ local function getItemList()
 end
 
 local function setupRedNetServer()
-  os.setComputerLabel("StorageMaster")
+  os.setComputerLabel("Storage Master")
   rednet.open(peripheral.getName(GLB.modem))
-  rednet.host("storage", "main")
+  rednet.host(PROTOCOL, "main")
+end
+
+-- local function checkConfig()
+--   local invManagerChest = peripheral.wrap(CONFIG.invManagerChestName)
+--   if invManagerChest == nil or peripheral.getType(invManagerChest) ~= "inventory" then
+--     error("CONFIG.invManagerChestName is either missing or isn't an inventory")
+--     os.exit(69)
+--   end
+--
+--   me = peripheral.wrap(CONFIG.ownName)
+-- end
+
+local function getNameFromDNS(name)
+  Name = ""
+
+  parallel.waitForAll(
+    function ()
+      rednet.send(GLB.dnsId, name, "dns")
+    end,
+    function ()
+      local id, msg = rednet.receive("dns")
+      assert(id)
+
+      if msg == nil or type(msg) ~= "string" or msg == "UNKNOWN" then
+        error("please configure your DNS server for 'storage turtle'")
+        os.exit(69)
+      end
+
+      Name = msg
+    end
+  )
+
+  return Name
+end
+
+local function getNamesFromDNS()
+  local dnsId = rednet.lookup("dns", "dns")
+
+  if dnsId == nil then
+    error("you must first run the DNS server")
+    os.exit(69)
+  end
+
+  GLB.dnsId = dnsId
+  GLB.ownName = getNameFromDNS("storage turtle")
+  print("got 'storage turtle' from DNS:", GLB.ownName)
+  GLB.invBuffer = getNameFromDNS("player inventory buffer")
+  print("got 'player inventory buffer' from DNS:", GLB.invBuffer)
 end
 
 local function init()
+  if turtle == nil then
+    error("This computer must be a turtle")
+    os.exit(69)
+  end
+
   term.clear()
   term.setCursorPos(1, 1)
-  print("initializing...")
+  -- print("checking config..")
+  -- checkConfig()
 
-  GLB.storage = collectStorage()
-  GLB.invManagerChest = peripheral.wrap(CONFIG.invManagerChestName)
-  print("collected " .. #GLB.storage .. " containers")
+  print("initializing...")
 
   GLB.modem = findWirelessModem()
   setupRedNetServer()
   print("set up wireless communication")
+
+  print("getting peripherals from DNS")
+  getNamesFromDNS()
+
+  GLB.storage = collectStorage()
+  print("found " .. #GLB.storage .. " containers in network")
 end
 
 init()
 
 MESSAGE_SWITCH = {
   ["PING"] = function (id, _)
-    rednet.send(id, { code = "PONG" }, "storage")
+    rednet.send(id, { code = "PONG" }, PROTOCOL)
   end,
   ["CLIENT"] = function (id, _)
-    local file = fs.open("/disk/client/storageClient.lua", "r")
+    local file = fs.open("/disk/storageClient/storageClient.lua", "r")
     if file == nil then
       error("/disk/storageClient.lua isn't accessible")
       rednet.send(id, { code = "ERROR", error = "Unable to send the client program" })
@@ -117,12 +175,12 @@ MESSAGE_SWITCH = {
     local data = file.readAll()
     file.close()
 
-    rednet.send(id, { code = "CLIENT_DATA", data = data }, "storage")
+    rednet.send(id, { code = "CLIENT_DATA", data = data }, PROTOCOL)
   end
 }
 
 while true do
-  local id, msg = rednet.receive("storage")
+  local id, msg = rednet.receive(PROTOCOL)
 
   if id == nil then
     goto continue
