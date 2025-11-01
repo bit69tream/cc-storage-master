@@ -112,7 +112,7 @@ local function getNameFromDNS(name)
 end
 
 local function checkPeripheral(name, optStorageType)
-  prph = peripheral.wrap(name)
+  local prph = peripheral.wrap(name)
   if prph == nil then
     error("peripheral '" .. name .. "' doesn't exist")
     os.exit(69)
@@ -172,13 +172,18 @@ local function init()
 
   print("initializing...")
 
+  term.write("looking for wireless modem...")
   GLB.modem = findWirelessModem()
-  setupRedNetServer()
-  print("set up wireless communication")
+  print("done")
 
-  print("getting peripherals from DNS")
+  term.write("setting up wireless communication...")
+  setupRedNetServer()
+  print("done")
+
+  print("getting peripherals from DNS:")
   getNamesFromDNS()
 
+  term.write("collecting storage peripherals...")
   GLB.storage = collectStorage()
   print("found " .. #GLB.storage .. " containers in network")
 end
