@@ -5,14 +5,13 @@ GLB = {
   -- list of wrapped storage peripherals
   storage = {},
   modem = {},
-  dnsId = {},
+  dnsId = 0,
 
   invBuffer = "",
+  invManager = {},
+
   ownName = "",
 }
-
--- global variables related to UI
-UISTATE = {}
 
 function DUMP(o)
   if type(o) == 'table' then
@@ -137,7 +136,7 @@ local function checkPeripheral(name, optStorageType)
   end
 end
 
-local function getNamesFromDNS()
+local function getPeripheralsFromDNS()
   local dnsId = rednet.lookup("dns", "dns")
 
   if dnsId == nil then
@@ -149,8 +148,11 @@ local function getNamesFromDNS()
   GLB.ownName = getNameFromDNS("storage turtle")
   print("got 'storage turtle' from DNS:", GLB.ownName)
 
-  GLB.invBuffer = getNameFromDNS("player inventory buffer")
-  print("got 'player inventory buffer' from DNS:", GLB.invBuffer)
+  GLB.invManager = getNameFromDNS("inventory manager")
+  print("got 'inventory manager' from DNS")
+
+  GLB.invBuffer = getNameFromDNS("inventory manager buffer")
+  print("got 'inventory manager buffer' from DNS:", GLB.invBuffer)
   checkPeripheral(GLB.invBuffer, "inventory")
 
   if peripheral.wrap(GLB.invBuffer).size() < 27 then
@@ -181,7 +183,7 @@ local function init()
   print("done")
 
   print("getting peripherals from DNS:")
-  getNamesFromDNS()
+  getPeripheralsFromDNS()
 
   term.write("collecting storage peripherals...")
   GLB.storage = collectStorage()

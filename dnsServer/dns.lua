@@ -3,7 +3,8 @@ MODEM = nil
 
 PERIPHERAL_NAMES = {
   ["storage turtle"] = "turtle_1",
-  ["player inventory buffer"] = "quark:variant_chest_0",
+  ["inventory manager buffer"] = "quark:variant_chest_0",
+  ["inventory manager"] = "inventoryManager_0",
 }
 
 function DUMP(o)
@@ -36,6 +37,11 @@ local function init()
 
   print("setting up rednet")
   setupRednet()
+
+  print("available peripherals: ")
+  for alias, name in pairs(PERIPHERAL_NAMES) do
+    print("  " .. alias .. ": " .. name)
+  end
 end
 
 init()
