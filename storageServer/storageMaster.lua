@@ -88,16 +88,6 @@ local function setupRedNetServer()
   rednet.host(PROTOCOL, "main")
 end
 
--- local function checkConfig()
---   local invManagerChest = peripheral.wrap(CONFIG.invManagerChestName)
---   if invManagerChest == nil or peripheral.getType(invManagerChest) ~= "inventory" then
---     error("CONFIG.invManagerChestName is either missing or isn't an inventory")
---     os.exit(69)
---   end
---
---   me = peripheral.wrap(CONFIG.ownName)
--- end
-
 local function getNameFromDNS(name)
   Name = ""
 
@@ -121,6 +111,32 @@ local function getNameFromDNS(name)
   return Name
 end
 
+local function checkPeripheral(name, optStorageType)
+  prph = peripheral.wrap(name)
+  if prph == nil then
+    error("peripheral '" .. name .. "' doesn't exist")
+    os.exit(69)
+  end
+
+  if optStorageType == nil then
+    return
+  end
+
+  local typ = { peripheral.getType(prph) }
+  local hasType = false
+  for i = 1, #typ do
+    if typ[i] == optStorageType then
+      hasType = true
+      break
+    end
+  end
+
+  if not hasType then
+    error("peripheral's '" .. name .. "' type doesn't satisfy '" .. optStorageType .. "' requirement")
+    os.exit(69)
+  end
+end
+
 local function getNamesFromDNS()
   local dnsId = rednet.lookup("dns", "dns")
 
@@ -132,8 +148,15 @@ local function getNamesFromDNS()
   GLB.dnsId = dnsId
   GLB.ownName = getNameFromDNS("storage turtle")
   print("got 'storage turtle' from DNS:", GLB.ownName)
+
   GLB.invBuffer = getNameFromDNS("player inventory buffer")
   print("got 'player inventory buffer' from DNS:", GLB.invBuffer)
+  checkPeripheral(GLB.invBuffer, "inventory")
+
+  if peripheral.wrap(GLB.invBuffer).size() < 27 then
+    error("player inventory buffer needs to be at least 27 slots long")
+    os.exit(69)
+  end
 end
 
 local function init()
