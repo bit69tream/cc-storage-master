@@ -148,8 +148,10 @@ local function getPeripheralsFromDNS()
   GLB.ownName = getNameFromDNS("storage turtle")
   print("got 'storage turtle' from DNS:", GLB.ownName)
 
-  GLB.invManager = getNameFromDNS("inventory manager")
-  print("got 'inventory manager' from DNS")
+  local invManager = getNameFromDNS("inventory manager")
+  print("got 'inventory manager' from DNS: ", invManager)
+
+  GLB.invManager = peripheral.wrap(invManager)
 
   GLB.invBuffer = getNameFromDNS("inventory manager buffer")
   print("got 'inventory manager buffer' from DNS:", GLB.invBuffer)
