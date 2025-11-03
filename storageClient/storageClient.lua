@@ -319,6 +319,8 @@ local function processChar(c)
     UI.searchBar.query = UI.searchBar.query .. c
 
     if UI.tabs.tabActiveId == UI.tabs.player.id then
+      UI.tabs.player.focusedItem = 0
+      UI.tabs.player.scroll = 0
       renderPlayerTab()
     end
   end
@@ -329,6 +331,8 @@ local function processKeyPress(key)
     UI.searchBar.query = string.sub(UI.searchBar.query, 1, -2)
 
     if UI.tabs.tabActiveId == UI.tabs.player.id then
+      UI.tabs.player.focusedItem = 0
+      UI.tabs.player.scroll = 0
       renderPlayerTab()
     end
   end
