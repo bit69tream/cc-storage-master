@@ -35,6 +35,8 @@ UI = {
       scroll = 0,
       ---@type {name: string, count: number, slot: number, displayName: string, nbt: string }[]
       inventory = {},
+      ---@type {name: string, count: number, slot: number, displayName: string, nbt: string }[]
+      filteredInventory = {},
       focusedItem = 0,
     },
   },
@@ -189,13 +191,26 @@ local function fetchPlayerInventory()
       UI.tabs.player.inventory = data.data
     end
   )
+  UI.tabs.player.focusedItem = 0
 end
 
 local function renderPlayerTab()
   term.redirect(UI.tabs.player.window)
 
+  UI.tabs.player.filteredInventory = {}
+  if UI.searchBar.query == "" then
+    UI.tabs.player.filteredInventory = UI.tabs.player.inventory
+  else
+    local q = string.lower(UI.searchBar.query)
+    for i = 1, #UI.tabs.player.inventory do
+      if string.find(string.lower(UI.tabs.player.inventory[i].displayName), q) ~= nil then
+        UI.tabs.player.filteredInventory[#UI.tabs.player.filteredInventory + 1] = UI.tabs.player.inventory[i]
+      end
+    end
+  end
+
   term.clear()
-  for i = 1+UI.tabs.player.scroll, #UI.tabs.player.inventory do
+  for i = 1 + UI.tabs.player.scroll, #UI.tabs.player.filteredInventory do
     if i == UI.tabs.player.focusedItem then
       term.setTextColor(colors.black)
       term.setBackgroundColor(colors.white)
@@ -203,8 +218,8 @@ local function renderPlayerTab()
       term.setTextColor(colors.lightGray)
       term.setBackgroundColor(colors.black)
     end
-    term.setCursorPos(1, i-UI.tabs.player.scroll)
-    term.write(UI.tabs.player.inventory[i].count .. " " .. UI.tabs.player.inventory[i].displayName)
+    term.setCursorPos(1, i - UI.tabs.player.scroll)
+    term.write(UI.tabs.player.filteredInventory[i].count .. " " .. UI.tabs.player.filteredInventory[i].displayName)
   end
 
   term.redirect(UI.term)
@@ -302,12 +317,20 @@ end
 local function processChar(c)
   if UI.focusedId == UI.searchBar.id then
     UI.searchBar.query = UI.searchBar.query .. c
+
+    if UI.tabs.tabActiveId == UI.tabs.player.id then
+      renderPlayerTab()
+    end
   end
 end
 
 local function processKeyPress(key)
   if UI.focusedId == UI.searchBar.id and key == keys.backspace then
     UI.searchBar.query = string.sub(UI.searchBar.query, 1, -2)
+
+    if UI.tabs.tabActiveId == UI.tabs.player.id then
+      renderPlayerTab()
+    end
   end
 end
 
