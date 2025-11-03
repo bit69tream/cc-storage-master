@@ -6,8 +6,14 @@ GLB = {
   server = nil,
 }
 
+WINDOW_BOUNDS = {
+  yStart = 5,
+  yEnd = -1
+}
+
 -- ui state
 UI = {
+  term = {},
   focusedId = 1,
   tabs = {
     tabActiveId = 1,
@@ -17,12 +23,19 @@ UI = {
       name = "",
       xStart = 0,
       xEnd = 0,
+      window = {},
+      scroll = 0,
     },
     player = {
       id = 2,
       name = "",
       xStart = 0,
       xEnd = 0,
+      window = {},
+      scroll = 0,
+      ---@type {name: string, count: number, slot: number, displayName: string, nbt: string }[]
+      inventory = {},
+      focusedItem = 0,
     },
   },
   searchBar = {
@@ -83,6 +96,7 @@ local function initUI()
   term.clear()
 
   W, H = term.getSize()
+  WINDOW_BOUNDS.yEnd = H - 1
 
   local line1 = "Storage"
   local line2 = "Master"
@@ -106,6 +120,13 @@ local function initUI()
 
   UI.tabs.storage.name = centerString("storage", tabStorageWidth)
   UI.tabs.player.name = centerString("player", tabPlayerWidth)
+
+  UI.term = term.current()
+
+  UI.tabs.storage.window = window.create(term.current(), 1, WINDOW_BOUNDS.yStart, W,
+    WINDOW_BOUNDS.yEnd - WINDOW_BOUNDS.yStart, false)
+  UI.tabs.player.window = window.create(term.current(), 1, WINDOW_BOUNDS.yStart, W,
+    WINDOW_BOUNDS.yEnd - WINDOW_BOUNDS.yStart, false)
 end
 
 local function init()
@@ -155,8 +176,46 @@ local function renderTabNames()
     string.rep(playerTabBg, #UI.tabs.player.name))
 end
 
+local function fetchPlayerInventory()
+  parallel.waitForAll(
+    function()
+      rednet.send(GLB.server, { code = "GET_PLAYER_INV" }, PROTOCOL)
+    end,
+    function()
+      local id, data = rednet.receive(PROTOCOL)
+      assert(id == GLB.server)
+      assert(data)
+      assert(data.code == "PLAYER_INVENTORY")
+      UI.tabs.player.inventory = data.data
+    end
+  )
+end
+
+local function renderPlayerTab()
+  term.redirect(UI.tabs.player.window)
+
+  term.clear()
+  for i = 1+UI.tabs.player.scroll, #UI.tabs.player.inventory do
+    if i == UI.tabs.player.focusedItem then
+      term.setTextColor(colors.black)
+      term.setBackgroundColor(colors.white)
+    else
+      term.setTextColor(colors.lightGray)
+      term.setBackgroundColor(colors.black)
+    end
+    term.setCursorPos(1, i-UI.tabs.player.scroll)
+    term.write(UI.tabs.player.inventory[i].count .. " " .. UI.tabs.player.inventory[i].displayName)
+  end
+
+  term.redirect(UI.term)
+end
+
 local function renderTabs()
   renderTabNames()
+
+  if UI.tabs.player.id == UI.focusedId then
+    renderPlayerTab()
+  end
 end
 
 QUERY_INACTIVE_FG = "8"
@@ -187,7 +246,7 @@ local function renderSearchBar()
     string.rep("f", promptLen) .. string.rep(queryBg, queryLen))
 
   if UI.focusedId == UI.searchBar.id then
-    term.setCursorPos(#line+1, UI.searchBar.y)
+    term.setCursorPos(#line + 1, UI.searchBar.y)
     term.setCursorBlink(true)
   end
 end
@@ -209,9 +268,26 @@ local function processMouseClick(x, y, button)
     if x >= UI.tabs.storage.xStart and x < UI.tabs.storage.xEnd then
       UI.tabs.tabActiveId = UI.tabs.storage.id
       UI.focusedId = UI.tabs.storage.id
+
+      UI.tabs.storage.window.setVisible(true)
+      UI.tabs.player.window.setVisible(false)
     elseif x >= UI.tabs.player.xStart and x < UI.tabs.player.xEnd then
       UI.tabs.tabActiveId = UI.tabs.player.id
       UI.focusedId = UI.tabs.player.id
+      fetchPlayerInventory()
+
+      UI.tabs.storage.window.setVisible(false)
+      UI.tabs.player.window.setVisible(true)
+    end
+
+    return
+  end
+
+  if y >= WINDOW_BOUNDS.yStart and y <= WINDOW_BOUNDS.yEnd then
+    if UI.tabs.tabActiveId == UI.tabs.player.id then
+      UI.tabs.player.focusedItem = y - WINDOW_BOUNDS.yStart + 1 + UI.tabs.player.scroll
+      renderPlayerTab()
+    elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
     end
 
     return
@@ -219,7 +295,6 @@ local function processMouseClick(x, y, button)
 
   if y == UI.searchBar.y then
     UI.focusedId = UI.searchBar.id
-
     return
   end
 end
@@ -236,6 +311,26 @@ local function processKeyPress(key)
   end
 end
 
+---@param a number
+---@param min number
+---@param max number
+---@return number
+local function clamp(a, min, max)
+  return math.min(max, math.max(min, a))
+end
+
+local function processMouseScroll(dir, _, y)
+  if y >= WINDOW_BOUNDS.yStart and y <= WINDOW_BOUNDS.yEnd then
+    if UI.tabs.tabActiveId == UI.tabs.player.id then
+      UI.tabs.player.scroll = clamp(UI.tabs.player.scroll + dir, 0, 27)
+      renderPlayerTab()
+    elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
+    end
+
+    return
+  end
+end
+
 init()
 
 while true do
@@ -246,6 +341,8 @@ while true do
 
   if event == "mouse_click" then
     processMouseClick(eventData[3], eventData[4], eventData[2])
+  elseif event == "mouse_scroll" then
+    processMouseScroll(eventData[2], eventData[3], eventData[4])
   elseif event == "char" then
     processChar(eventData[2])
   elseif event == "key" then

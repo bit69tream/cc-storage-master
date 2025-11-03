@@ -45,42 +45,6 @@ local function collectStorage()
   return storage
 end
 
-local function getItemList()
-  -- scheme:
-  --   name
-  --   count
-  local items = {}
-
-  for i = 1, #GLB.storage do
-    -- get list of items from a current storage
-    local currentItems = GLB.storage[i].list()
-
-    -- check if the item is already in `items`
-    for j = 1, #currentItems do
-      local itemAlreadyInList = false
-      for k = 1, #items do
-        if not currentItems[j] then
-          goto continue
-        end
-
-        if items[k].name == currentItems[j].name then
-          itemAlreadyInList = true
-          items[k].count = items[k].count + currentItems[j].count
-        end
-        ::continue::
-      end
-
-      if currentItems[j] and not itemAlreadyInList then
-        table.insert(items, currentItems[j])
-      end
-    end
-  end
-
-  table.sort(items, function(a, b) return a.name < b.name end)
-
-  return items
-end
-
 local function setupRedNetServer()
   os.setComputerLabel("Storage Master")
   rednet.open(peripheral.getName(GLB.modem))
@@ -91,10 +55,10 @@ local function getNameFromDNS(name)
   Name = ""
 
   parallel.waitForAll(
-    function ()
+    function()
       rednet.send(GLB.dnsId, name, "dns")
     end,
-    function ()
+    function()
       local id, msg = rednet.receive("dns")
       assert(id)
 
@@ -192,13 +156,45 @@ local function init()
   print("found " .. #GLB.storage .. " containers in network")
 end
 
+local function getFancyItemList()
+  ---@type { displayName: string; name: string; count: number; nbt: string|nil; }[]
+  local items = {}
+
+  for i = 1, #GLB.storage do
+    local inv = GLB.storage[i]
+
+    for islot = 1, inv.size() do
+      print(i, islot)
+      local details = inv.getItemDetail(islot)
+      if details == nil then
+        goto continue
+      end
+
+      items[#items + 1] = {
+        displayName = details.displayName,
+        name = details.name,
+        count = details.count,
+        nbt = details.nbt,
+      }
+
+      ::continue::
+    end
+  end
+
+  return items
+end
+
+local function getPlayerInventory()
+  return GLB.invManager.getItems()
+end
+
 init()
 
 MESSAGE_SWITCH = {
-  ["PING"] = function (id, _)
+  ["PING"] = function(id, _)
     rednet.send(id, { code = "PONG" }, PROTOCOL)
   end,
-  ["CLIENT"] = function (id, _)
+  ["CLIENT"] = function(id, _)
     local file = fs.open("/disk/storageClient/storageClient.lua", "r")
     if file == nil then
       error("/disk/storageClient.lua isn't accessible")
@@ -208,6 +204,14 @@ MESSAGE_SWITCH = {
     file.close()
 
     rednet.send(id, { code = "CLIENT_DATA", data = data }, PROTOCOL)
+  end,
+  ["GET_ITEMS"] = function(id, _)
+    local items = getFancyItemList()
+    rednet.send(id, { code = "ITEM_LIST", data = items })
+  end,
+  ["GET_PLAYER_INV"] = function (id, _)
+    local items = getPlayerInventory()
+    rednet.send(id, { code = "PLAYER_INVENTORY", data = items }, PROTOCOL)
   end
 }
 
