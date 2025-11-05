@@ -9,3 +9,4 @@ My CC: Tweaked based storage solution I've created for my personal CABIN modpack
 - [ ] Autocrafting for workbench recipes.
 - [ ] Autocrafting for simple Create machine recipes. (basin, depot, etc.)
 - [ ] Autocrafting for complex processes.
+- [ ] Automatically move certain items into a drawer storage if they exceed a certain threshold (like 2k or something).
