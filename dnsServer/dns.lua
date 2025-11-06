@@ -2,9 +2,12 @@ PROTOCOL = "dns"
 MODEM = nil
 
 PERIPHERAL_NAMES = {
-  ["storage turtle"] = "turtle_1",
-  ["inventory manager buffer"] = "quark:variant_chest_0",
-  ["inventory manager"] = "inventoryManager_0",
+  ["inventory manager buffer"] = "quark:variant_chest_1",
+  ["inventory manager"] = "inventoryManager_1",
+  ["main storage"] = {
+    "create_connected:item_silo_1",
+    "create_connected:item_silo_0",
+  },
 }
 
 function DUMP(o)
@@ -20,12 +23,8 @@ function DUMP(o)
   end
 end
 
-local function findWirelessModem()
-  return peripheral.find("modem", function(_, modem) return modem.isWireless() end)
-end
-
 local function setupRednet()
-  MODEM = findWirelessModem()
+  MODEM = peripheral.find("modem", function (_, m) return m.isWireless() end)
 
   os.setComputerLabel("DNS Server")
   rednet.open(peripheral.getName(MODEM))
@@ -35,12 +34,13 @@ end
 local function init()
   print("initializing...")
 
-  print("setting up rednet")
+  term.write("setting up rednet...")
   setupRednet()
+  print("done")
 
   print("available peripherals: ")
   for alias, name in pairs(PERIPHERAL_NAMES) do
-    print("  " .. alias .. ": " .. name)
+    print("  " .. alias .. ": " .. DUMP(name))
   end
 end
 
@@ -54,6 +54,6 @@ while true do
     print(id, DUMP(msg), "UNKNOWN")
   elseif msg.sType ~= "lookup" then
     rednet.send(id, PERIPHERAL_NAMES[msg], "dns")
-    print(id, DUMP(msg), PERIPHERAL_NAMES[msg])
+    print(id, DUMP(msg), DUMP(PERIPHERAL_NAMES[msg]))
   end
 end

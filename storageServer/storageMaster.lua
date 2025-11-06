@@ -4,13 +4,10 @@ PROTOCOL = "storage"
 GLB = {
   -- list of wrapped storage peripherals
   storage = {},
-  modem = {},
   dnsId = 0,
 
   invBuffer = "",
   invManager = {},
-
-  ownName = "",
 }
 
 function DUMP(o)
@@ -26,28 +23,10 @@ function DUMP(o)
   end
 end
 
-local function findWirelessModem()
-  return peripheral.find("modem", function(_, modem) return modem.isWireless() end)
-end
-
-local function collectStorage()
-  local periheralList = peripheral.getNames()
-  local storage = {}
-
-  for i = 1, #periheralList do
-    local p = periheralList[i]
-    local _, type = peripheral.getType(p)
-    if p ~= GLB.invBuffer and type == "inventory" then
-      table.insert(storage, peripheral.wrap(p))
-    end
-  end
-
-  return storage
-end
-
 local function setupRedNetServer()
   os.setComputerLabel("Storage Master")
-  rednet.open(peripheral.getName(GLB.modem))
+  local modem = peripheral.find("modem", function(_, m) return m.isWireless() end)
+  rednet.open(peripheral.getName(modem))
   rednet.host(PROTOCOL, "main")
 end
 
@@ -63,7 +42,7 @@ local function getNameFromDNS(name)
       assert(id)
 
       if msg == nil or type(msg) ~= "string" or msg == "UNKNOWN" then
-        error("please configure your DNS server for 'storage turtle'")
+        error("please configure your DNS server for '" .. name .. "'")
         os.exit(69)
       end
 
@@ -109,8 +88,6 @@ local function getPeripheralsFromDNS()
   end
 
   GLB.dnsId = dnsId
-  GLB.ownName = getNameFromDNS("storage turtle")
-  print("got 'storage turtle' from DNS:", GLB.ownName)
 
   local invManager = getNameFromDNS("inventory manager")
   print("got 'inventory manager' from DNS: ", invManager)
@@ -127,12 +104,34 @@ local function getPeripheralsFromDNS()
   end
 end
 
-local function init()
-  if turtle == nil then
-    error("This computer must be a turtle")
-    os.exit(69)
-  end
+local function collectStorage()
+  MainStorage = {}
 
+  parallel.waitForAll(
+    function()
+      rednet.send(GLB.dnsId, "main storage", "dns")
+    end,
+    function()
+      local id, msg = rednet.receive("dns")
+      assert(id)
+
+      if msg == nil or type(msg) ~= "table" or msg == "UNKNOWN" then
+        error("please configure your DNS server for 'main storage'")
+        os.exit(69)
+      end
+
+      MainStorage = msg
+    end
+  )
+
+  print("got main storage from DNS:", DUMP(MainStorage))
+
+  for i = 1, #MainStorage do
+    table.insert(GLB.storage, peripheral.wrap(MainStorage[i]))
+  end
+end
+
+local function init()
   term.clear()
   term.setCursorPos(1, 1)
   -- print("checking config..")
@@ -140,19 +139,15 @@ local function init()
 
   print("initializing...")
 
-  term.write("looking for wireless modem...")
-  GLB.modem = findWirelessModem()
-  print("done")
-
   term.write("setting up wireless communication...")
   setupRedNetServer()
   print("done")
 
-  print("getting peripherals from DNS:")
+  print("getting utility peripherals from DNS:")
   getPeripheralsFromDNS()
 
-  term.write("collecting storage peripherals...")
-  GLB.storage = collectStorage()
+  term.write("getting storage peripherals from DNS: ")
+  collectStorage()
   print("found " .. #GLB.storage .. " containers in network")
 end
 
@@ -209,7 +204,7 @@ MESSAGE_SWITCH = {
     local items = getFancyItemList()
     rednet.send(id, { code = "ITEM_LIST", data = items })
   end,
-  ["GET_PLAYER_INV"] = function (id, _)
+  ["GET_PLAYER_INV"] = function(id, _)
     local items = getPlayerInventory()
     rednet.send(id, { code = "PLAYER_INVENTORY", data = items }, PROTOCOL)
   end
