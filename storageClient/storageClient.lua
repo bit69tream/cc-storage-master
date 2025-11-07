@@ -76,7 +76,18 @@ local function setupRednetClient()
   os.setComputerLabel("Storage Client")
   rednet.open(MODEM_PERIPHERAL)
 
-  GLB.server = rednet.lookup(PROTOCOL, "main")
+  term.write("looking for the main server")
+  for _ = 1, 5 do
+    local server = rednet.lookup(PROTOCOL, "main")
+
+    if server ~= nil then
+      GLB.server = server
+      break
+    end
+
+    term.write(".")
+    sleep(0.1)
+  end
   if GLB.server == nil then
     error("Please set the server up first")
     os.exit(69)
