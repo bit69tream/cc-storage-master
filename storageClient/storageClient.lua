@@ -450,6 +450,14 @@ local function renderUI()
   setCursorFocusedLocation()
 end
 
+---@param n number
+---@param min number
+---@param max number
+---@return number
+local function clamp(n, min, max)
+  return math.min(max, math.max(n, min))
+end
+
 local function processMouseClick(x, y, button)
   _ = button
 
@@ -530,7 +538,9 @@ local function processMouseClick(x, y, button)
           ndiff = 1
         end
 
-        UI.controls.amount.n = UI.controls.amount.n + ndiff
+        local maxItemAmount = 27*64
+
+        UI.controls.amount.n = clamp(UI.controls.amount.n + ndiff, 1, maxItemAmount)
         break
       end
 
