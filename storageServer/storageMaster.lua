@@ -134,8 +134,6 @@ end
 local function init()
   term.clear()
   term.setCursorPos(1, 1)
-  -- print("checking config..")
-  -- checkConfig()
 
   print("initializing...")
 
