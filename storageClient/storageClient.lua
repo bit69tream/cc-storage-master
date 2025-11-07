@@ -8,7 +8,7 @@ GLB = {
 
 WINDOW_BOUNDS = {
   yStart = 5,
-  yEnd = -1
+  yEnd = -2
 }
 
 -- ui state
@@ -45,6 +45,75 @@ UI = {
     y = 3,
     prompt = "> ",
     query = "",
+  },
+  controls = {
+    yStart = -1,
+    yEnd = 0,
+    pressedButtonId = 0,
+    amount = {
+      n = 64,
+      y = 0,
+      xStart = 9,
+      xEnd = -12,
+    },
+    buttons = {
+      storage = {
+        id = 4,
+        text = " Get ",
+        xStart = 2,
+        xEnd = 6,
+        y = 0,
+      },
+      player = {
+        id = 5,
+        text = " Send ",
+        xStart = 2,
+        xEnd = 7,
+        y = 0,
+      },
+      minus64 = {
+        id = 6,
+        text = "-64",
+        xStart = -3,
+        xEnd = -1,
+        y = -1,
+      },
+      minus32 = {
+        id = 7,
+        text = "-32",
+        xStart = -7,
+        xEnd = -5,
+        y = -1,
+      },
+      minus1 = {
+        id = 8,
+        text = "-1",
+        xStart = -10,
+        xEnd = -8,
+        y = -1,
+      },
+      plus1 = {
+        id = 9,
+        text = "+1",
+        xStart = -10,
+        xEnd = -8,
+        y = 0,
+      },
+      plus32 = {
+        id = 10,
+        text = "+32",
+        xStart = -7,
+        xEnd = -5,
+        y = 0,
+      },
+      plus64 = {
+        id = 11,
+        text = "+64",
+        xStart = -3,
+        xEnd = -1,
+        y = 0,
+      },
+    },
   }
 }
 
@@ -109,7 +178,13 @@ local function initUI()
   term.clear()
 
   W, H = term.getSize()
-  WINDOW_BOUNDS.yEnd = H - 1
+
+  if W < 26 or H < 20 then
+    error("The portable terminal needs to be at least 26x20")
+    os.exit(69)
+  end
+
+  WINDOW_BOUNDS.yEnd = H + WINDOW_BOUNDS.yEnd
 
   local line1 = "Storage"
   local line2 = "Master"
@@ -137,9 +212,27 @@ local function initUI()
   UI.term = term.current()
 
   UI.tabs.storage.window = window.create(term.current(), 1, WINDOW_BOUNDS.yStart, W,
-    WINDOW_BOUNDS.yEnd - WINDOW_BOUNDS.yStart, false)
+    WINDOW_BOUNDS.yEnd - WINDOW_BOUNDS.yStart + 1, false)
   UI.tabs.player.window = window.create(term.current(), 1, WINDOW_BOUNDS.yStart, W,
-    WINDOW_BOUNDS.yEnd - WINDOW_BOUNDS.yStart, false)
+    WINDOW_BOUNDS.yEnd - WINDOW_BOUNDS.yStart + 1, false)
+
+  UI.controls.yEnd = H + UI.controls.yEnd
+  UI.controls.yStart = H + UI.controls.yStart
+
+  UI.controls.amount.xEnd = UI.controls.amount.xEnd + W
+  UI.controls.amount.y = UI.controls.amount.y + H
+
+  for k, v in pairs(UI.controls.buttons) do
+    UI.controls.buttons[k].y = H + v.y
+    if v.xStart >= 1 then
+      goto continue
+    end
+
+    UI.controls.buttons[k].xStart = W + v.xStart
+    UI.controls.buttons[k].xEnd = W + v.xEnd
+
+    ::continue::
+  end
 end
 
 local function init()
@@ -236,11 +329,16 @@ local function renderPlayerTab()
   term.redirect(UI.term)
 end
 
+local function renderPlayerTabButtons()
+
+end
+
 local function renderTabs()
   renderTabNames()
 
   if UI.tabs.player.id == UI.focusedId then
     renderPlayerTab()
+    renderPlayerTabButtons()
   end
 end
 
@@ -270,11 +368,76 @@ local function renderSearchBar()
     line,
     string.rep("0", promptLen) .. string.rep(queryFg, queryLen),
     string.rep("f", promptLen) .. string.rep(queryBg, queryLen))
+end
 
+local function setCursorFocusedLocation()
   if UI.focusedId == UI.searchBar.id then
-    term.setCursorPos(#line + 1, UI.searchBar.y)
+    local lineLen = #UI.searchBar.prompt + #UI.searchBar.query
+    term.setCursorPos(lineLen + 1, UI.searchBar.y)
     term.setCursorBlink(true)
   end
+end
+
+BUTTON_PRESSED_BG = "0"
+BUTTON_PRESSED_FG = "7"
+BUTTON_UNPRESSED_BG = "7"
+BUTTON_UNPRESSED_FG = "0"
+local function renderControls()
+  for yi = UI.controls.yStart, UI.controls.yEnd do
+    term.setCursorPos(1, yi)
+    term.clearLine()
+  end
+
+  local amountMaxLen = UI.controls.amount.xEnd - UI.controls.amount.xStart + 1
+  local amountStr = tostring(UI.controls.amount.n)
+  local amountLen = #amountStr
+
+  local amountRenderStr = string.rep("0", amountMaxLen - amountLen) .. amountStr
+
+  term.setCursorPos(UI.controls.amount.xStart, UI.controls.amount.y)
+  term.blit(
+    amountRenderStr,
+    string.rep("0", #amountRenderStr),
+    string.rep("f", #amountRenderStr))
+
+  ---@type {id: number, text: string, xStart: number, xEnd: number, y: number}
+  local tabButton = {}
+
+  if UI.tabs.tabActiveId == UI.tabs.player.id then
+    tabButton = UI.controls.buttons.player
+  elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
+    tabButton = UI.controls.buttons.storage
+  end
+
+  ---@param btn {id: number, text: string, xStart: number, xEnd: number, y: number}
+  local function renderButton(btn)
+    local fg = BUTTON_UNPRESSED_FG
+    local bg = BUTTON_UNPRESSED_BG
+    if btn.id == UI.controls.pressedButtonId then
+      fg = BUTTON_PRESSED_FG
+      bg = BUTTON_PRESSED_BG
+    end
+
+    term.setCursorPos(btn.xStart, btn.y)
+    term.blit(
+      btn.text,
+      string.rep(fg, #btn.text),
+      string.rep(bg, #btn.text))
+  end
+
+  renderButton(tabButton)
+
+  for k, v in pairs(UI.controls.buttons) do
+    if k == "storage" or k == "player" then
+      goto continue
+    end
+
+    renderButton(v)
+
+    ::continue::
+  end
+
+  UI.controls.pressedButtonId = 0
 end
 
 local function renderUI()
@@ -282,6 +445,9 @@ local function renderUI()
 
   renderTabs()
   renderSearchBar()
+  renderControls()
+
+  setCursorFocusedLocation()
 end
 
 local function processMouseClick(x, y, button)
@@ -291,12 +457,14 @@ local function processMouseClick(x, y, button)
 
   -- check if tabs were clicked
   if y == UI.tabs.y then
+    UI.controls.amount.n = 64
     if x >= UI.tabs.storage.xStart and x < UI.tabs.storage.xEnd then
       UI.tabs.tabActiveId = UI.tabs.storage.id
       UI.focusedId = UI.tabs.storage.id
 
       UI.tabs.storage.window.setVisible(true)
       UI.tabs.player.window.setVisible(false)
+
     elseif x >= UI.tabs.player.xStart and x < UI.tabs.player.xEnd then
       UI.tabs.tabActiveId = UI.tabs.player.id
       UI.focusedId = UI.tabs.player.id
@@ -321,6 +489,54 @@ local function processMouseClick(x, y, button)
 
   if y == UI.searchBar.y then
     UI.focusedId = UI.searchBar.id
+
+    return
+  end
+
+  if y >= UI.controls.yStart and y <= UI.controls.yEnd then
+    local invButton = {}
+    if UI.tabs.tabActiveId == UI.tabs.player.id then
+      invButton = UI.controls.buttons.player
+    elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
+      invButton = UI.controls.buttons.storage
+    end
+
+    if y == invButton.y and x >= invButton.xStart and x <= invButton.xEnd then
+      UI.controls.pressedButtonId = invButton.id
+
+      return
+    end
+
+    for k, v in pairs(UI.controls.buttons) do
+      if k == "player" or k == "storage" then
+        goto continue
+      end
+
+      if y == v.y and x >= v.xStart and x <= v.xEnd then
+        UI.controls.pressedButtonId = v.id
+
+        local ndiff = 0
+        if k == "minus64" then
+          ndiff = -64
+        elseif k == "minus32" then
+          ndiff = -32
+        elseif k == "minus1" then
+          ndiff = -1
+        elseif k == "plus64" then
+          ndiff = 64
+        elseif k == "plus32" then
+          ndiff = 32
+        elseif k == "plus1" then
+          ndiff = 1
+        end
+
+        UI.controls.amount.n = UI.controls.amount.n + ndiff
+        break
+      end
+
+      ::continue::
+    end
+
     return
   end
 end
