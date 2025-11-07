@@ -80,7 +80,19 @@ local function checkPeripheral(name, optStorageType)
 end
 
 local function getPeripheralsFromDNS()
-  local dnsId = rednet.lookup("dns", "dns")
+  term.write("looking for dns server")
+  local dnsId = nil
+  for _ = 1, 5 do
+    dnsId = rednet.lookup("dns", "dns")
+
+    if dnsId ~= nil then
+      break
+    end
+
+    term.write(".")
+    sleep(0.1)
+  end
+  print("\nfound dns server:", dnsId)
 
   if dnsId == nil then
     error("you must first run the DNS server")
