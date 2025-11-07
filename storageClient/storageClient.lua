@@ -300,7 +300,7 @@ local function processMouseClick(x, y, button)
     elseif x >= UI.tabs.player.xStart and x < UI.tabs.player.xEnd then
       UI.tabs.tabActiveId = UI.tabs.player.id
       UI.focusedId = UI.tabs.player.id
-      fetchPlayerInventory()
+      -- fetchPlayerInventory()
 
       UI.tabs.storage.window.setVisible(false)
       UI.tabs.player.window.setVisible(true)
@@ -371,19 +371,32 @@ end
 
 init()
 
-while true do
-  renderUI()
+local function mainLoop()
+  while true do
+    renderUI()
 
-  local eventData = { os.pullEvent() }
-  local event = eventData[1]
+    local eventData = { os.pullEvent() }
+    local event = eventData[1]
 
-  if event == "mouse_click" then
-    processMouseClick(eventData[3], eventData[4], eventData[2])
-  elseif event == "mouse_scroll" then
-    processMouseScroll(eventData[2], eventData[3], eventData[4])
-  elseif event == "char" then
-    processChar(eventData[2])
-  elseif event == "key" then
-    processKeyPress(eventData[2])
+    if event == "mouse_click" then
+      processMouseClick(eventData[3], eventData[4], eventData[2])
+    elseif event == "mouse_scroll" then
+      processMouseScroll(eventData[2], eventData[3], eventData[4])
+    elseif event == "char" then
+      processChar(eventData[2])
+    elseif event == "key" then
+      processKeyPress(eventData[2])
+    end
   end
 end
+
+
+parallel.waitForAll(
+  function()
+    while true do
+      fetchPlayerInventory()
+      sleep(3)
+    end
+  end,
+  mainLoop
+)
