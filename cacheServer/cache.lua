@@ -72,6 +72,7 @@ print("registration successful")
 STORAGE_PERIPHERAL = {}
 RANGE = { from = 0, upto = 0 }
 ITEMS = {}
+EMPTY_SLOTS = {}
 
 parallel.waitForAll(
   function()
@@ -86,18 +87,32 @@ parallel.waitForAll(
         print("assigned", msg.peripheral, "from", msg.range.from, "up to", msg.range.upto)
       elseif msg.code == "GET_ITEMS" then
         rednet.send(id, { code = "ITEMS_LIST", data = ITEMS }, "cache")
+      elseif msg.code == "GET_EMPTY_SLOTS" then
+        rednet.send(id,
+          {
+            code = "EMPTY_SLOTS",
+            data = EMPTY_SLOTS,
+            peripheral = peripheral.getName(STORAGE_PERIPHERAL)
+          },
+          "cache")
       end
     end
   end,
   function()
     while true do
       local newItems = {}
+      local emptySlots = {}
       if STORAGE_PERIPHERAL.getItemDetail == nil then
         goto continue
       end
 
       for i = RANGE.from, RANGE.upto do
-        newItems[#newItems + 1] = STORAGE_PERIPHERAL.getItemDetail(i)
+        local details = STORAGE_PERIPHERAL.getItemDetail(i)
+        if details == nil then
+          emptySlots[#emptySlots + 1] = i
+        else
+          newItems[#newItems + 1] = details
+        end
       end
 
       ITEMS = newItems
