@@ -5,6 +5,7 @@ GLB = {
   -- list of wrapped storage peripherals
   storage = {},
   dnsId = 0,
+  cacheServers = {},
 
   invBuffer = "",
   invManager = {},
@@ -143,6 +144,67 @@ local function collectStorage()
   end
 end
 
+local function getCacheServersFromDNS()
+  while #GLB.cacheServers == 0 do
+    parallel.waitForAll(
+      function()
+        rednet.send(GLB.dnsId, "cache servers", "dns")
+      end,
+      function()
+        local id, msg = rednet.receive("dns")
+        assert(id == GLB.dnsId)
+        assert(msg)
+
+        if msg.code == "WAITABIT" then
+          return
+        elseif msg.code == "CACHE_SERVERS" then
+          GLB.cacheServers = msg.data
+        end
+      end
+    )
+    sleep(0.1)
+  end
+
+  print("got cache server from DNS:", DUMP(GLB.cacheServers))
+end
+
+local function setupCacheServers()
+  local servers = GLB.cacheServers
+  local storage = GLB.storage
+
+  local storageSizeSlots = 0
+  for i = 1, #storage do
+    storageSizeSlots = storageSizeSlots + storage[i].size()
+  end
+  print("total slots in storage:", storageSizeSlots)
+
+  local slotsPerServer = storageSizeSlots / #servers
+
+  print("slots per cache server:", slotsPerServer)
+
+  local serverIndex = 1
+  for i = 1, #storage do
+    local currSlot = 1
+    local slots = storage[i].size()
+
+    while currSlot < slots do
+      local range = {from = currSlot, upto = currSlot + slotsPerServer - 1}
+      rednet.send(
+        servers[serverIndex],
+        {
+          code = "SETUP",
+          peripheral = peripheral.getName(storage[i]),
+          range = range
+        },
+        "cache")
+      print("cache server", servers[serverIndex], DUMP(range))
+
+      currSlot = currSlot + slotsPerServer
+      serverIndex = serverIndex + 1
+    end
+  end
+end
+
 local function init()
   term.clear()
   term.setCursorPos(1, 1)
@@ -156,9 +218,15 @@ local function init()
   print("getting utility peripherals from DNS:")
   getPeripheralsFromDNS()
 
+  print("getting storage cache servers from DNS:")
+  getCacheServersFromDNS()
+
   term.write("getting storage peripherals from DNS: ")
   collectStorage()
   print("found " .. #GLB.storage .. " containers in network")
+
+  print("setting up cache servers...")
+  setupCacheServers()
 end
 
 local function getFancyItemList()
