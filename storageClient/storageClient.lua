@@ -313,7 +313,7 @@ local function fetchStorage()
       assert(msg)
       assert(msg.code == "STORAGE")
       local items = msg.data
-      table.sort(items, function (a, b) return a.displayName < b.displayName end)
+      table.sort(items, function(a, b) return a.displayName < b.displayName end)
       UI.tabs.storage.inventory = items
     end
   )
@@ -481,6 +481,26 @@ local function clamp(n, min, max)
   return math.min(max, math.max(n, min))
 end
 
+local function sendItemFromInv()
+  local pl = UI.tabs.player
+  if pl.focusedItem == 0 then
+    return
+  end
+
+  local item = pl.filteredInventory[pl.focusedItem]
+
+  rednet.send(GLB.server,
+    {
+      code = "SEND_FROM_INV",
+      data = {
+        slot = item.slot,
+        count = math.min(UI.controls.amount.n, item.count),
+        name = item.name,
+      }
+    },
+    "storage")
+end
+
 local function processMouseClick(x, y, button)
   _ = button
 
@@ -528,6 +548,7 @@ local function processMouseClick(x, y, button)
     local invButton = {}
     if UI.tabs.tabActiveId == UI.tabs.player.id then
       invButton = UI.controls.buttons.player
+      sendItemFromInv()
     elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
       invButton = UI.controls.buttons.storage
     end
@@ -582,7 +603,7 @@ local function processChar(c)
       UI.tabs.player.focusedItem = 0
       UI.tabs.player.scroll = 0
       renderTab("player")
-    elseif  UI.tabs.tabActiveId == UI.tabs.storage.id then
+    elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
       UI.tabs.storage.focusedItem = 0
       UI.tabs.storage.scroll = 0
       renderTab("storage")
@@ -598,7 +619,7 @@ local function processKeyPress(key)
       UI.tabs.player.focusedItem = 0
       UI.tabs.player.scroll = 0
       renderTab("player")
-    elseif  UI.tabs.tabActiveId == UI.tabs.storage.id then
+    elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
       UI.tabs.storage.focusedItem = 0
       UI.tabs.storage.scroll = 0
       renderTab("storage")

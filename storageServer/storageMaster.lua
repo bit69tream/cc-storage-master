@@ -7,7 +7,7 @@ GLB = {
   dnsId = 0,
   cacheServers = {},
 
-  invBuffer = "",
+  invBuffer = {},
   invManager = {},
 }
 
@@ -54,13 +54,7 @@ local function getNameFromDNS(name)
   return Name
 end
 
-local function checkPeripheral(name, optStorageType)
-  local prph = peripheral.wrap(name)
-  if prph == nil then
-    error("peripheral '" .. name .. "' doesn't exist")
-    os.exit(69)
-  end
-
+local function checkPeripheral(prph, optStorageType)
   if optStorageType == nil then
     return
   end
@@ -75,7 +69,7 @@ local function checkPeripheral(name, optStorageType)
   end
 
   if not hasType then
-    error("peripheral's '" .. name .. "' type doesn't satisfy '" .. optStorageType .. "' requirement")
+    error("peripheral '" .. peripheral.getName(prph) .. "' type doesn't satisfy '" .. optStorageType .. "' requirement")
     os.exit(69)
   end
 end
@@ -107,11 +101,12 @@ local function getPeripheralsFromDNS()
 
   GLB.invManager = peripheral.wrap(invManager)
 
-  GLB.invBuffer = getNameFromDNS("inventory manager buffer")
-  print("got 'inventory manager buffer' from DNS:", GLB.invBuffer)
-  checkPeripheral(GLB.invBuffer, "inventory")
+  local invBuffer = getNameFromDNS("inventory manager buffer")
+  print("got 'inventory manager buffer' from DNS:", invBuffer)
+  checkPeripheral(invBuffer, "inventory")
+  GLB.invBuffer = peripheral.wrap(invBuffer)
 
-  if peripheral.wrap(GLB.invBuffer).size() < 27 then
+  if GLB.invBuffer.size() < 27 then
     error("player inventory buffer needs to be at least 27 slots long")
     os.exit(69)
   end
@@ -188,7 +183,7 @@ local function setupCacheServers()
     local slots = storage[i].size()
 
     while currSlot < slots do
-      local range = {from = currSlot, upto = currSlot + slotsPerServer - 1}
+      local range = { from = currSlot, upto = currSlot + slotsPerServer - 1 }
       rednet.send(
         servers[serverIndex],
         {
@@ -233,7 +228,7 @@ local function getFancyItemList()
   ---@type { displayName: string; name: string; count: number; nbt: string|nil; }[]
   local items = {}
 
-  rednet.broadcast({code = "GET_ITEMS"}, "cache")
+  rednet.broadcast({ code = "GET_ITEMS" }, "cache")
   for _ = 1, #GLB.cacheServers do
     local id, msg = rednet.receive("cache", 2)
 
@@ -242,7 +237,7 @@ local function getFancyItemList()
     assert(msg.code == "ITEMS_LIST")
 
     for i = 1, #msg.data do
-      items[#items+1] = msg.data[i]
+      items[#items + 1] = msg.data[i]
     end
   end
 
@@ -277,6 +272,28 @@ MESSAGE_SWITCH = {
   ["GET_PLAYER_INV"] = function(id, _)
     local items = getPlayerInventory()
     rednet.send(id, { code = "PLAYER_INVENTORY", data = items }, PROTOCOL)
+  end,
+  ["SEND_FROM_INV"] = function(_, msg)
+    local opts = {
+      name = msg.data.name,
+      fromSlot = msg.data.slot,
+      count = msg.data.count,
+    }
+    print(DUMP(opts))
+
+    GLB.invManager.removeItemFromPlayer("up", opts)
+
+    local chest = GLB.invBuffer
+    assert(chest)
+    for i = 1, chest.size() do
+      if chest.getItemDetail(i) ~= nil then
+        for j = 1, #GLB.storage do
+          if chest.pushItems(peripheral.getName(GLB.storage[j]), i) ~= 0 then
+            break
+          end
+        end
+      end
+    end
   end
 }
 
