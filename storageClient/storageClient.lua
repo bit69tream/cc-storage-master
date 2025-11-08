@@ -25,6 +25,11 @@ UI = {
       xEnd = 0,
       window = {},
       scroll = 0,
+      ---@type {name: string, count: number, slot: number, displayName: string, nbt: string }[]
+      inventory = {},
+      ---@type {name: string, count: number, slot: number, displayName: string, nbt: string }[]
+      filteredInventory = {},
+      focusedItem = 0,
     },
     player = {
       id = 2,
@@ -298,48 +303,68 @@ local function fetchPlayerInventory()
   UI.tabs.player.focusedItem = 0
 end
 
-local function renderPlayerTab()
-  term.redirect(UI.tabs.player.window)
+local function fetchStorage()
+  parallel.waitForAll(
+    function()
+      rednet.send(GLB.server, { code = "GET_STORAGE" }, PROTOCOL)
+    end,
+    function()
+      local id, msg = rednet.receive(PROTOCOL)
+      assert(id == GLB.server)
+      assert(msg)
+      assert(msg.code == "STORAGE")
+      local items = msg.data
+      table.sort(items, function (a, b) return a.displayName < b.displayName end)
+      UI.tabs.storage.inventory = items
+    end
+  )
+  UI.tabs.storage.focusedItem = 0
+end
 
-  UI.tabs.player.filteredInventory = {}
+---@param tab string
+local function renderTab(tab)
+  term.redirect(UI.tabs[tab].window)
+
+  UI.tabs[tab].filteredInventory = {}
   if UI.searchBar.query == "" then
-    UI.tabs.player.filteredInventory = UI.tabs.player.inventory
+    UI.tabs[tab].filteredInventory = UI.tabs[tab].inventory
   else
     local q = string.lower(UI.searchBar.query)
-    for i = 1, #UI.tabs.player.inventory do
-      if string.find(string.lower(UI.tabs.player.inventory[i].displayName), q) ~= nil then
-        UI.tabs.player.filteredInventory[#UI.tabs.player.filteredInventory + 1] = UI.tabs.player.inventory[i]
+    for i = 1, #UI.tabs[tab].inventory do
+      if string.find(string.lower(UI.tabs[tab].inventory[i].displayName), q) ~= nil then
+        UI.tabs[tab].filteredInventory[#UI.tabs[tab].filteredInventory + 1] = UI.tabs[tab].inventory[i]
       end
     end
   end
 
   term.clear()
-  for i = 1 + UI.tabs.player.scroll, #UI.tabs.player.filteredInventory do
-    if i == UI.tabs.player.focusedItem then
+  for i = 1 + UI.tabs[tab].scroll, #UI.tabs[tab].filteredInventory do
+    if i == UI.tabs[tab].focusedItem then
       term.setTextColor(colors.black)
       term.setBackgroundColor(colors.white)
     else
       term.setTextColor(colors.lightGray)
       term.setBackgroundColor(colors.black)
     end
-    term.setCursorPos(1, i - UI.tabs.player.scroll)
-    term.write(UI.tabs.player.filteredInventory[i].count .. " " .. UI.tabs.player.filteredInventory[i].displayName)
+    term.setCursorPos(1, i - UI.tabs[tab].scroll)
+    term.write(UI.tabs[tab].filteredInventory[i].count .. " " .. UI.tabs[tab].filteredInventory[i].displayName)
   end
 
   term.redirect(UI.term)
 end
 
-local function renderPlayerTabButtons()
-
-end
-
 local function renderTabs()
   renderTabNames()
 
-  if UI.tabs.player.id == UI.focusedId then
-    renderPlayerTab()
-    renderPlayerTabButtons()
+  local tab = nil
+  tab = "storage"
+  if UI.tabs.player.id == UI.tabs.tabActiveId then
+    tab = "player"
+  elseif UI.tabs.storage.id == UI.tabs.tabActiveId then
+    tab = "storage"
   end
+
+  renderTab(tab)
 end
 
 QUERY_INACTIVE_FG = "8"
@@ -475,7 +500,6 @@ local function processMouseClick(x, y, button)
     elseif x >= UI.tabs.player.xStart and x < UI.tabs.player.xEnd then
       UI.tabs.tabActiveId = UI.tabs.player.id
       UI.focusedId = UI.tabs.player.id
-      -- fetchPlayerInventory()
 
       UI.tabs.storage.window.setVisible(false)
       UI.tabs.player.window.setVisible(true)
@@ -487,8 +511,10 @@ local function processMouseClick(x, y, button)
   if y >= WINDOW_BOUNDS.yStart and y <= WINDOW_BOUNDS.yEnd then
     if UI.tabs.tabActiveId == UI.tabs.player.id then
       UI.tabs.player.focusedItem = y - WINDOW_BOUNDS.yStart + 1 + UI.tabs.player.scroll
-      renderPlayerTab()
+      renderTab("player")
     elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
+      UI.tabs.storage.focusedItem = y - WINDOW_BOUNDS.yStart + 1 + UI.tabs.storage.scroll
+      renderTab("storage")
     end
 
     return
@@ -557,7 +583,11 @@ local function processChar(c)
     if UI.tabs.tabActiveId == UI.tabs.player.id then
       UI.tabs.player.focusedItem = 0
       UI.tabs.player.scroll = 0
-      renderPlayerTab()
+      renderTab("player")
+    elseif  UI.tabs.tabActiveId == UI.tabs.storage.id then
+      UI.tabs.storage.focusedItem = 0
+      UI.tabs.storage.scroll = 0
+      renderTab("storage")
     end
   end
 end
@@ -569,25 +599,23 @@ local function processKeyPress(key)
     if UI.tabs.tabActiveId == UI.tabs.player.id then
       UI.tabs.player.focusedItem = 0
       UI.tabs.player.scroll = 0
-      renderPlayerTab()
+      renderTab("player")
+    elseif  UI.tabs.tabActiveId == UI.tabs.storage.id then
+      UI.tabs.storage.focusedItem = 0
+      UI.tabs.storage.scroll = 0
+      renderTab("storage")
     end
   end
-end
-
----@param a number
----@param min number
----@param max number
----@return number
-local function clamp(a, min, max)
-  return math.min(max, math.max(min, a))
 end
 
 local function processMouseScroll(dir, _, y)
   if y >= WINDOW_BOUNDS.yStart and y <= WINDOW_BOUNDS.yEnd then
     if UI.tabs.tabActiveId == UI.tabs.player.id then
       UI.tabs.player.scroll = clamp(UI.tabs.player.scroll + dir, 0, 27)
-      renderPlayerTab()
+      renderTab("player")
     elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
+      UI.tabs.storage.scroll = clamp(UI.tabs.storage.scroll + dir, 0, 4096)
+      renderTab("storage")
     end
 
     return
@@ -620,6 +648,7 @@ parallel.waitForAll(
   function()
     while true do
       fetchPlayerInventory()
+      fetchStorage()
       sleep(3)
     end
   end,

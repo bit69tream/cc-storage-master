@@ -233,24 +233,16 @@ local function getFancyItemList()
   ---@type { displayName: string; name: string; count: number; nbt: string|nil; }[]
   local items = {}
 
-  for i = 1, #GLB.storage do
-    local inv = GLB.storage[i]
+  rednet.broadcast({code = "GET_ITEMS"}, "cache")
+  for _ = 1, #GLB.cacheServers do
+    local id, msg = rednet.receive("cache", 2)
 
-    for islot = 1, inv.size() do
-      print(i, islot)
-      local details = inv.getItemDetail(islot)
-      if details == nil then
-        goto continue
-      end
+    assert(id)
+    assert(msg)
+    assert(msg.code == "ITEMS_LIST")
 
-      items[#items + 1] = {
-        displayName = details.displayName,
-        name = details.name,
-        count = details.count,
-        nbt = details.nbt,
-      }
-
-      ::continue::
+    for i = 1, #msg.data do
+      items[#items+1] = msg.data[i]
     end
   end
 
@@ -278,9 +270,9 @@ MESSAGE_SWITCH = {
 
     rednet.send(id, { code = "CLIENT_DATA", data = data }, PROTOCOL)
   end,
-  ["GET_ITEMS"] = function(id, _)
+  ["GET_STORAGE"] = function(id, _)
     local items = getFancyItemList()
-    rednet.send(id, { code = "ITEM_LIST", data = items })
+    rednet.send(id, { code = "STORAGE", data = items }, PROTOCOL)
   end,
   ["GET_PLAYER_INV"] = function(id, _)
     local items = getPlayerInventory()
