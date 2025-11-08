@@ -472,7 +472,6 @@ local function processMouseClick(x, y, button)
 
       UI.tabs.storage.window.setVisible(true)
       UI.tabs.player.window.setVisible(false)
-
     elseif x >= UI.tabs.player.xStart and x < UI.tabs.player.xEnd then
       UI.tabs.tabActiveId = UI.tabs.player.id
       UI.focusedId = UI.tabs.player.id
@@ -538,7 +537,7 @@ local function processMouseClick(x, y, button)
           ndiff = 1
         end
 
-        local maxItemAmount = 27*64
+        local maxItemAmount = 27 * 64
 
         UI.controls.amount.n = clamp(UI.controls.amount.n + ndiff, 1, maxItemAmount)
         break
