@@ -300,7 +300,6 @@ local function fetchPlayerInventory()
       UI.tabs.player.inventory = data.data
     end
   )
-  UI.tabs.player.focusedItem = 0
 end
 
 local function fetchStorage()
@@ -318,7 +317,6 @@ local function fetchStorage()
       UI.tabs.storage.inventory = items
     end
   )
-  UI.tabs.storage.focusedItem = 0
 end
 
 ---@param tab string
