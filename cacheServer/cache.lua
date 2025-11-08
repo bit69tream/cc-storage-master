@@ -102,15 +102,19 @@ parallel.waitForAll(
     while true do
       local newItems = {}
       local emptySlots = {}
+      local prph = ""
+
       if STORAGE_PERIPHERAL.getItemDetail == nil then
         goto continue
       end
 
+      prph = peripheral.getName(STORAGE_PERIPHERAL)
       for i = RANGE.from, RANGE.upto do
         local details = STORAGE_PERIPHERAL.getItemDetail(i)
         if details == nil then
           emptySlots[#emptySlots + 1] = i
         else
+          details.peripheral = prph
           newItems[#newItems + 1] = details
         end
       end
