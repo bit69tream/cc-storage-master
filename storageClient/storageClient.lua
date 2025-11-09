@@ -570,14 +570,18 @@ local function processMouseClick(x, y, button)
     local invButton = {}
     if UI.tabs.tabActiveId == UI.tabs.player.id then
       invButton = UI.controls.buttons.player
-      sendItemFromInv()
     elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
       invButton = UI.controls.buttons.storage
-      requestItemFromStorage()
     end
 
     if y == invButton.y and x >= invButton.xStart and x <= invButton.xEnd then
       UI.controls.pressedButtonId = invButton.id
+
+      if invButton.id == UI.controls.buttons.player.id then
+        sendItemFromInv()
+      else
+        requestItemFromStorage()
+      end
 
       return
     end
