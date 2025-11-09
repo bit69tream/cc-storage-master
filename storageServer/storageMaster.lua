@@ -146,8 +146,12 @@ local function getCacheServersFromDNS()
         rednet.send(GLB.dnsId, "cache servers", "dns")
       end,
       function()
+        ::start::
         local id, msg = rednet.receive("dns")
-        assert(id == GLB.dnsId)
+        if id ~= GLB.dnsId then
+          goto start
+        end
+
         assert(msg)
 
         if msg.code == "WAITABIT" then
