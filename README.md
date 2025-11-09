@@ -2,8 +2,8 @@
 My CC: Tweaked based storage solution I've created for my personal CABIN modpack playthrough.
 
 ## TODO
-- [ ] Fast solution for getting detailed information about items located in the storage.
-- [ ] Requesting and sending items into storage containers via Inventory Manager.
+- [X] Fast solution for getting detailed information about items located in the storage.
+- [X] Requesting and sending items into storage containers via Inventory Manager.
 - [ ] Tooltips for items with NBT data.
 - [ ] Ability to _trash_ items both from inventory and from the storage system.
 - [ ] Autocrafting for workbench recipes.

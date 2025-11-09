@@ -8,6 +8,7 @@ GLB = {
   cacheServers = {},
 
   invBuffer = {},
+  ---@type {removeItemFromPlayer: function, getItems: function, addItemToPlayer: function}
   invManager = {},
 }
 
@@ -39,8 +40,12 @@ local function getNameFromDNS(name)
       rednet.send(GLB.dnsId, name, "dns")
     end,
     function()
+      ::start::
       local id, msg = rednet.receive("dns")
       assert(id)
+      if id ~= GLB.dnsId then
+        goto start
+      end
 
       if msg == nil or type(msg) ~= "string" or msg == "UNKNOWN" then
         error("please configure your DNS server for '" .. name .. "'")
@@ -228,8 +233,9 @@ local function init()
   setupCacheServers()
 end
 
+---@return { displayName: string; name: string; count: number; nbt: string|nil; peripheral: string; slot: number}[]
 local function getFancyItemList()
-  ---@type { displayName: string; name: string; count: number; nbt: string|nil; }[]
+  ---@type { displayName: string; name: string; count: number; nbt: string|nil; peripheral: string; slot: number}[]
   local items = {}
 
   rednet.broadcast({ code = "GET_ITEMS" }, "cache")
@@ -276,6 +282,49 @@ MESSAGE_SWITCH = {
   ["GET_PLAYER_INV"] = function(id, _)
     local items = getPlayerInventory()
     rednet.send(id, { code = "PLAYER_INVENTORY", data = items }, PROTOCOL)
+  end,
+  ["REQUEST_ITEM"] = function(_, msg)
+    ---@type {name: string, nbt: string, peripheral:string, count: number}
+    local item = msg.data
+    local storageItems = getFancyItemList()
+    local invBuffer = peripheral.getName(GLB.invBuffer)
+
+    ---@type {slot:number, peripheral: string, count:number}
+    local itemsForSending = {}
+
+    for i = 1, #storageItems do
+      local found = false
+
+      if item.count <= 0 then
+        break
+      end
+
+      if item.nbt ~= nil then
+        if item.nbt == storageItems[i].nbt and item.name == storageItems[i].name then
+          found = true
+        end
+      else
+        if item.name == storageItems[i].name then
+          found = true
+        end
+      end
+
+      if found then
+        local count = math.min(storageItems[i].count, item.count)
+        itemsForSending[#itemsForSending + 1] = {
+          slot = storageItems[i].slot,
+          peripheral = storageItems[i].peripheral,
+          count = count,
+        }
+        item.count = item.count - count
+      end
+    end
+
+    for i = 1, #itemsForSending do
+      GLB.invBuffer.pullItems(itemsForSending[i].peripheral, itemsForSending[i].slot, itemsForSending[i].count)
+      GLB.invManager.addItemToPlayer("up", {})
+    end
+
   end,
   ["SEND_FROM_INV"] = function(_, msg)
     local opts = {

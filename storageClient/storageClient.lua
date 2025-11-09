@@ -25,9 +25,9 @@ UI = {
       xEnd = 0,
       window = {},
       scroll = 0,
-      ---@type {name: string, count: number, slot: number, displayName: string, nbt: string }[]
+      ---@type {name: string, count: number, slot: number, displayName: string, nbt: string, peripheral: string }[]
       inventory = {},
-      ---@type {name: string, count: number, slot: number, displayName: string, nbt: string }[]
+      ---@type {name: string, count: number, slot: number, displayName: string, nbt: string, peripheral: string }[]
       filteredInventory = {},
       focusedItem = 0,
     },
@@ -295,9 +295,9 @@ local function fetchPlayerInventory()
     function()
       local id, data = rednet.receive(PROTOCOL)
       assert(id == GLB.server)
-      assert(data)
-      assert(data.code == "PLAYER_INVENTORY")
-      UI.tabs.player.inventory = data.data
+      if data ~= nil and data.code == "PLAYER_INVENTORY" then
+        UI.tabs.player.inventory = data.data
+      end
     end
   )
 end
@@ -481,6 +481,28 @@ local function clamp(n, min, max)
   return math.min(max, math.max(n, min))
 end
 
+local function requestItemFromStorage()
+  local st = UI.tabs.storage
+
+  if st.focusedItem == 0 then
+    return
+  end
+
+  local item = st.filteredInventory[st.focusedItem]
+
+  rednet.send(GLB.server,
+    {
+      code = "REQUEST_ITEM",
+      data = {
+        count = UI.controls.amount.n,
+        name = item.name,
+        peripheral = item.peripheral,
+        nbt = item.nbt,
+      }
+    },
+    "storage")
+end
+
 local function sendItemFromInv()
   local pl = UI.tabs.player
   if pl.focusedItem == 0 then
@@ -551,6 +573,7 @@ local function processMouseClick(x, y, button)
       sendItemFromInv()
     elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
       invButton = UI.controls.buttons.storage
+      requestItemFromStorage()
     end
 
     if y == invButton.y and x >= invButton.xStart and x <= invButton.xEnd then

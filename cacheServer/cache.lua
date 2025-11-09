@@ -115,6 +115,7 @@ parallel.waitForAll(
           emptySlots[#emptySlots + 1] = i
         else
           details.peripheral = prph
+          details.slot = i
           newItems[#newItems + 1] = details
         end
       end
