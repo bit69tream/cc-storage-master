@@ -348,6 +348,8 @@ local function renderTab(tab)
     term.write(UI.tabs[tab].filteredInventory[i].count .. " " .. UI.tabs[tab].filteredInventory[i].displayName)
   end
 
+  term.setBackgroundColor(colors.black)
+
   term.redirect(UI.term)
 end
 
