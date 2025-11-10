@@ -10,6 +10,7 @@ PERIPHERAL_NAMES = {
     "create_connected:item_silo_1",
     "create_connected:item_silo_0",
   },
+  ["chat box"] = "chatBox_0",
   ["cache servers"] = {},
 }
 

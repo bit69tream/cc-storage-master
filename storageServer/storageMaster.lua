@@ -10,6 +10,8 @@ GLB = {
   invBuffer = {},
   ---@type {removeItemFromPlayer: function, getItems: function, addItemToPlayer: function}
   invManager = {},
+  ---@type {sendMessage: function}
+  chatBox = {},
 }
 
 function DUMP(o)
@@ -23,6 +25,11 @@ function DUMP(o)
   else
     return tostring(o)
   end
+end
+
+---@param message string
+local function sendChatMessage(message)
+  GLB.chatBox.sendMessage(message, "John Storage", "<>", "&b")
 end
 
 local function setupRedNetServer()
@@ -115,6 +122,10 @@ local function getPeripheralsFromDNS()
     error("player inventory buffer needs to be at least 27 slots long")
     os.exit(69)
   end
+
+  local chatbox = getNameFromDNS("chat box")
+  print("got 'chat box' from DNS:", chatbox)
+  GLB.chatBox = peripheral.wrap(chatbox)
 end
 
 local function collectStorage()
@@ -231,6 +242,8 @@ local function init()
 
   print("setting up cache servers...")
   setupCacheServers()
+
+  sendChatMessage("Storage initialized successfully")
 end
 
 ---@return { displayName: string; name: string; count: number; nbt: string|nil; peripheral: string; slot: number}[]
@@ -285,9 +298,10 @@ MESSAGE_SWITCH = {
   end,
   ["REQUEST_ITEM"] = function(_, msg)
     ---@type {name: string, nbt: string, peripheral:string, count: number}
+    local itemOrig = msg.data
+    ---@type {name: string, nbt: string, peripheral:string, count: number}
     local item = msg.data
     local storageItems = getFancyItemList()
-    local invBuffer = peripheral.getName(GLB.invBuffer)
 
     ---@type {slot:number, peripheral: string, count:number}
     local itemsForSending = {}
@@ -325,6 +339,7 @@ MESSAGE_SWITCH = {
       GLB.invManager.addItemToPlayer("up", {})
     end
 
+    sendChatMessage("Delivered " .. itemOrig.count "of [" .. itemOrig.name .. "]")
   end,
   ["SEND_FROM_INV"] = function(_, msg)
     local opts = {
@@ -339,14 +354,18 @@ MESSAGE_SWITCH = {
     local chest = GLB.invBuffer
     assert(chest)
     for i = 1, chest.size() do
-      if chest.getItemDetail(i) ~= nil then
-        for j = 1, #GLB.storage do
-          if chest.pushItems(peripheral.getName(GLB.storage[j]), i) ~= 0 then
-            break
-          end
+      if #chest.list() == 0 then
+        break
+      end
+
+      for j = 1, #GLB.storage do
+        if chest.pushItems(peripheral.getName(GLB.storage[j]), i) ~= 0 then
+          break
         end
       end
     end
+
+    sendChatMessage("Received " .. opts.count .. " of [" .. opts.name .. "]")
   end
 }
 
