@@ -103,41 +103,47 @@ UI = {
         x = 2,
         y = H,
       },
-      minus64 = {
+      one = {
         id = IOTA(),
-        text = "-64",
-        x = W - 3,
+        text = "1",
+        x = W - 9,
         y = H - 1,
+        n = 1,
       },
-      minus32 = {
+      sixteen = {
         id = IOTA(),
-        text = "-32",
-        x = W - 7,
+        text = "16",
+        x = W - 6,
         y = H - 1,
+        n = 16,
       },
-      minus1 = {
+      thirtytwo = {
         id = IOTA(),
-        text = "-1",
+        text = "32",
+        x = W - 2,
+        y = H - 1,
+        n = 32,
+      },
+      sixtyfour = {
+        id = IOTA(),
+        text = "64",
         x = W - 10,
-        y = H - 1,
-      },
-      plus1 = {
-        id = IOTA(),
-        text = "+1",
-        x = W - 10,
         y = H,
+        n = 64,
       },
-      plus32 = {
+      onetwentyeight = {
         id = IOTA(),
-        text = "+32",
+        text = "128",
         x = W - 7,
         y = H,
+        n = 128,
       },
-      plus64 = {
+      fivehundredandtwelve = {
         id = IOTA(),
-        text = "+64",
+        text = "512",
         x = W - 3,
         y = H,
+        n = 512,
       },
       refresh = {
         id = IOTA(),
@@ -513,8 +519,7 @@ local function sendItemFromInv()
     "storage")
 end
 
-local function processMouseClick(x, y, button)
-  _ = button
+local function processMouseClick(x, y, mouseButton)
 
   UI.focusedId = 0
 
@@ -577,30 +582,20 @@ local function processMouseClick(x, y, button)
     end
 
     for name, btn in pairs(UI.sendRequestControls.buttons) do
-      if name == "player" or name == "storage" or name == "refresh" then
+      if btn.n == nil then
         goto continue
       end
 
       if y == btn.y and x >= btn.x and x <= (btn.x + #btn.text - 1) then
         UI.sendRequestControls.pressedButtonId = btn.id
 
-        local ndiff = 0
-        if name == "minus64" then
-          ndiff = -64
-        elseif name == "minus32" then
-          ndiff = -32
-        elseif name == "minus1" then
-          ndiff = -1
-        elseif name == "plus64" then
-          ndiff = 64
-        elseif name == "plus32" then
-          ndiff = 32
-        elseif name == "plus1" then
-          ndiff = 1
+        local ndiff = btn.n
+        -- right mouse button
+        if mouseButton == 2 then
+          ndiff = -ndiff
         end
 
         local maxItemAmount = 27 * 64
-
         UI.sendRequestControls.amount.n = clamp(UI.sendRequestControls.amount.n + ndiff, 1, maxItemAmount)
         break
       end
