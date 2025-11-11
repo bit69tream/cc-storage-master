@@ -6,24 +6,37 @@ GLB = {
   server = nil,
 }
 
+W, H = term.getSize()
+
+if W < 26 or H < 20 then
+  error("The portable terminal needs to be at least 26x20")
+  os.exit(69)
+end
+
 WINDOW_BOUNDS = {
   yStart = 5,
-  yEnd = -2
+  yEnd = H - 2
 }
 
 -- ui state
 UI = {
-  term = {},
+  term = term.current(),
   focusedId = 1,
   tabs = {
     tabActiveId = 1,
     y = 4,
     storage = {
       id = 1,
-      name = "",
-      xStart = 0,
-      xEnd = 0,
-      window = {},
+      name = "storage",
+      xStart = 2,
+      xEnd = math.floor(W / 2),
+      window = window.create(
+        term.current(),
+        1,
+        WINDOW_BOUNDS.yStart,
+        W,
+        WINDOW_BOUNDS.yEnd - WINDOW_BOUNDS.yStart + 1,
+        false),
       scroll = 0,
       ---@type {name: string, count: number, slot: number, displayName: string, nbt: string, peripheral: string }[]
       inventory = {},
@@ -33,10 +46,16 @@ UI = {
     },
     player = {
       id = 2,
-      name = "",
-      xStart = 0,
-      xEnd = 0,
-      window = {},
+      name = "player",
+      xStart = math.floor(W / 2) + 1,
+      xEnd = W,
+      window = window.create(
+        term.current(),
+        1,
+        WINDOW_BOUNDS.yStart,
+        W,
+        WINDOW_BOUNDS.yEnd - WINDOW_BOUNDS.yStart + 1,
+        false),
       scroll = 0,
       ---@type {name: string, count: number, slot: number, displayName: string, nbt: string }[]
       inventory = {},
@@ -51,15 +70,15 @@ UI = {
     prompt = "> ",
     query = "",
   },
-  controls = {
-    yStart = -1,
-    yEnd = 0,
+  sendRequestControls = {
+    yStart = H - 1,
+    yEnd = H,
     pressedButtonId = 0,
     amount = {
       n = 64,
-      y = 0,
+      y = H,
       xStart = 9,
-      xEnd = -12,
+      xEnd = W - 12,
     },
     buttons = {
       storage = {
@@ -67,58 +86,62 @@ UI = {
         text = " Get ",
         xStart = 2,
         xEnd = 6,
-        y = 0,
+        y = H,
       },
       player = {
         id = 5,
         text = " Send ",
         xStart = 2,
         xEnd = 7,
-        y = 0,
+        y = H,
       },
       minus64 = {
         id = 6,
         text = "-64",
-        xStart = -3,
-        xEnd = -1,
-        y = -1,
+        xStart = W - 3,
+        xEnd = W - 1,
+        y = H - 1,
       },
       minus32 = {
         id = 7,
         text = "-32",
-        xStart = -7,
-        xEnd = -5,
-        y = -1,
+        xStart = W - 7,
+        xEnd = W - 5,
+        y = H - 1,
       },
       minus1 = {
         id = 8,
         text = "-1",
-        xStart = -10,
-        xEnd = -8,
-        y = -1,
+        xStart = W - 10,
+        xEnd = W - 8,
+        y = H - 1,
       },
       plus1 = {
         id = 9,
         text = "+1",
-        xStart = -10,
-        xEnd = -8,
-        y = 0,
+        xStart = W - 10,
+        xEnd = W - 8,
+        y = H,
       },
       plus32 = {
         id = 10,
         text = "+32",
-        xStart = -7,
-        xEnd = -5,
-        y = 0,
+        xStart = W - 7,
+        xEnd = W - 5,
+        y = H,
       },
       plus64 = {
         id = 11,
         text = "+64",
-        xStart = -3,
-        xEnd = -1,
-        y = 0,
+        xStart = W - 3,
+        xEnd = W - 1,
+        y = H,
       },
     },
+  },
+  refreshButton = {
+    x = 0,
+    y = 0,
   }
 }
 
@@ -168,9 +191,6 @@ local function setupRednetClient()
   end
 end
 
-W = nil
-H = nil
-
 local function centerString(line, width)
   local pad = width - #line
   local left = math.floor(pad / 2)
@@ -181,15 +201,6 @@ end
 
 local function initUI()
   term.clear()
-
-  W, H = term.getSize()
-
-  if W < 26 or H < 20 then
-    error("The portable terminal needs to be at least 26x20")
-    os.exit(69)
-  end
-
-  WINDOW_BOUNDS.yEnd = H + WINDOW_BOUNDS.yEnd
 
   local line1 = "Storage"
   local line2 = "Master"
@@ -202,42 +213,11 @@ local function initUI()
   term.setCursorPos(line2x, 2)
   term.write(line2)
 
-  local hw = math.floor(W / 2)
-  UI.tabs.storage.xStart = 2
-  UI.tabs.storage.xEnd = hw
-  UI.tabs.player.xStart = hw + 1
-  UI.tabs.player.xEnd = W
-
   local tabStorageWidth = UI.tabs.storage.xEnd - UI.tabs.storage.xStart
   local tabPlayerWidth = UI.tabs.player.xEnd - UI.tabs.player.xStart
 
-  UI.tabs.storage.name = centerString("storage", tabStorageWidth)
-  UI.tabs.player.name = centerString("player", tabPlayerWidth)
-
-  UI.term = term.current()
-
-  UI.tabs.storage.window = window.create(term.current(), 1, WINDOW_BOUNDS.yStart, W,
-    WINDOW_BOUNDS.yEnd - WINDOW_BOUNDS.yStart + 1, false)
-  UI.tabs.player.window = window.create(term.current(), 1, WINDOW_BOUNDS.yStart, W,
-    WINDOW_BOUNDS.yEnd - WINDOW_BOUNDS.yStart + 1, false)
-
-  UI.controls.yEnd = H + UI.controls.yEnd
-  UI.controls.yStart = H + UI.controls.yStart
-
-  UI.controls.amount.xEnd = UI.controls.amount.xEnd + W
-  UI.controls.amount.y = UI.controls.amount.y + H
-
-  for k, v in pairs(UI.controls.buttons) do
-    UI.controls.buttons[k].y = H + v.y
-    if v.xStart >= 1 then
-      goto continue
-    end
-
-    UI.controls.buttons[k].xStart = W + v.xStart
-    UI.controls.buttons[k].xEnd = W + v.xEnd
-
-    ::continue::
-  end
+  UI.tabs.storage.name = centerString(UI.tabs.storage.name, tabStorageWidth)
+  UI.tabs.player.name = centerString(UI.tabs.player.name, tabPlayerWidth)
 end
 
 local function init()
@@ -408,18 +388,18 @@ BUTTON_PRESSED_FG = "7"
 BUTTON_UNPRESSED_BG = "7"
 BUTTON_UNPRESSED_FG = "0"
 local function renderControls()
-  for yi = UI.controls.yStart, UI.controls.yEnd do
+  for yi = UI.sendRequestControls.yStart, UI.sendRequestControls.yEnd do
     term.setCursorPos(1, yi)
     term.clearLine()
   end
 
-  local amountMaxLen = UI.controls.amount.xEnd - UI.controls.amount.xStart + 1
-  local amountStr = tostring(UI.controls.amount.n)
+  local amountMaxLen = UI.sendRequestControls.amount.xEnd - UI.sendRequestControls.amount.xStart + 1
+  local amountStr = tostring(UI.sendRequestControls.amount.n)
   local amountLen = #amountStr
 
   local amountRenderStr = string.rep("0", amountMaxLen - amountLen) .. amountStr
 
-  term.setCursorPos(UI.controls.amount.xStart, UI.controls.amount.y)
+  term.setCursorPos(UI.sendRequestControls.amount.xStart, UI.sendRequestControls.amount.y)
   term.blit(
     amountRenderStr,
     string.rep("0", #amountRenderStr),
@@ -429,16 +409,16 @@ local function renderControls()
   local tabButton = {}
 
   if UI.tabs.tabActiveId == UI.tabs.player.id then
-    tabButton = UI.controls.buttons.player
+    tabButton = UI.sendRequestControls.buttons.player
   elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
-    tabButton = UI.controls.buttons.storage
+    tabButton = UI.sendRequestControls.buttons.storage
   end
 
   ---@param btn {id: number, text: string, xStart: number, xEnd: number, y: number}
   local function renderButton(btn)
     local fg = BUTTON_UNPRESSED_FG
     local bg = BUTTON_UNPRESSED_BG
-    if btn.id == UI.controls.pressedButtonId then
+    if btn.id == UI.sendRequestControls.pressedButtonId then
       fg = BUTTON_PRESSED_FG
       bg = BUTTON_PRESSED_BG
     end
@@ -452,7 +432,7 @@ local function renderControls()
 
   renderButton(tabButton)
 
-  for k, v in pairs(UI.controls.buttons) do
+  for k, v in pairs(UI.sendRequestControls.buttons) do
     if k == "storage" or k == "player" then
       goto continue
     end
@@ -462,7 +442,7 @@ local function renderControls()
     ::continue::
   end
 
-  UI.controls.pressedButtonId = 0
+  UI.sendRequestControls.pressedButtonId = 0
 end
 
 local function renderUI()
@@ -496,7 +476,7 @@ local function requestItemFromStorage()
     {
       code = "REQUEST_ITEM",
       data = {
-        count = UI.controls.amount.n,
+        count = UI.sendRequestControls.amount.n,
         name = item.name,
         peripheral = item.peripheral,
         nbt = item.nbt,
@@ -518,7 +498,7 @@ local function sendItemFromInv()
       code = "SEND_FROM_INV",
       data = {
         slot = item.slot,
-        count = math.min(UI.controls.amount.n, item.count),
+        count = math.min(UI.sendRequestControls.amount.n, item.count),
         name = item.name,
       }
     },
@@ -532,7 +512,7 @@ local function processMouseClick(x, y, button)
 
   -- check if tabs were clicked
   if y == UI.tabs.y then
-    UI.controls.amount.n = 64
+    UI.sendRequestControls.amount.n = 64
     if x >= UI.tabs.storage.xStart and x < UI.tabs.storage.xEnd then
       UI.tabs.tabActiveId = UI.tabs.storage.id
       UI.focusedId = UI.tabs.storage.id
@@ -568,18 +548,18 @@ local function processMouseClick(x, y, button)
     return
   end
 
-  if y >= UI.controls.yStart and y <= UI.controls.yEnd then
+  if y >= UI.sendRequestControls.yStart and y <= UI.sendRequestControls.yEnd then
     local invButton = {}
     if UI.tabs.tabActiveId == UI.tabs.player.id then
-      invButton = UI.controls.buttons.player
+      invButton = UI.sendRequestControls.buttons.player
     elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
-      invButton = UI.controls.buttons.storage
+      invButton = UI.sendRequestControls.buttons.storage
     end
 
     if y == invButton.y and x >= invButton.xStart and x <= invButton.xEnd then
-      UI.controls.pressedButtonId = invButton.id
+      UI.sendRequestControls.pressedButtonId = invButton.id
 
-      if invButton.id == UI.controls.buttons.player.id then
+      if invButton.id == UI.sendRequestControls.buttons.player.id then
         sendItemFromInv()
       else
         requestItemFromStorage()
@@ -588,13 +568,13 @@ local function processMouseClick(x, y, button)
       return
     end
 
-    for k, v in pairs(UI.controls.buttons) do
+    for k, v in pairs(UI.sendRequestControls.buttons) do
       if k == "player" or k == "storage" then
         goto continue
       end
 
       if y == v.y and x >= v.xStart and x <= v.xEnd then
-        UI.controls.pressedButtonId = v.id
+        UI.sendRequestControls.pressedButtonId = v.id
 
         local ndiff = 0
         if k == "minus64" then
@@ -613,7 +593,7 @@ local function processMouseClick(x, y, button)
 
         local maxItemAmount = 27 * 64
 
-        UI.controls.amount.n = clamp(UI.controls.amount.n + ndiff, 1, maxItemAmount)
+        UI.sendRequestControls.amount.n = clamp(UI.sendRequestControls.amount.n + ndiff, 1, maxItemAmount)
         break
       end
 
