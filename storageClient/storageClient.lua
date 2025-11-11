@@ -90,7 +90,7 @@ UI = {
     amount = {
       n = 64,
       y = H,
-      xStart = 9,
+      xStart = 11,
       xEnd = W - 12,
     },
     buttons = {
@@ -162,7 +162,14 @@ UI = {
         x = W,
         y = 1,
         color = "3",
-      }
+      },
+      resetAmount = {
+        id = IOTA(),
+        text = "x",
+        x = 9,
+        y = H,
+        color = "e",
+      },
     },
   },
 }
@@ -534,7 +541,6 @@ end
 MOUSE_BUTTON_LEFT = 1
 MOUSE_BUTTON_RIGHT = 2
 local function processMouseClick(x, y, mouseButton)
-
   UI.focusedId = 0
 
   -- check if tabs were clicked
@@ -571,6 +577,14 @@ local function processMouseClick(x, y, mouseButton)
 
   if y == UI.searchBar.y then
     UI.focusedId = UI.searchBar.id
+
+    return
+  end
+
+  local resetBtn = UI.sendRequestControls.buttons.resetAmount
+  if y == resetBtn.y and x == resetBtn.x then
+    UI.sendRequestControls.pressedButtonId = resetBtn.id
+    UI.sendRequestControls.amount.n = 64
 
     return
   end
