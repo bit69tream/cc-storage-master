@@ -28,6 +28,9 @@ function IOTA()
   return ret
 end
 
+CONTROL_BUTTONS_UP_COLOR = "5"
+CONTROL_BUTTONS_DOWN_COLOR = "e"
+
 -- ui state
 UI = {
   term = term.current(),
@@ -96,12 +99,14 @@ UI = {
         text = " Get ",
         x = 2,
         y = H,
+        color = "5",
       },
       player = {
         id = IOTA(),
         text = " Send ",
         x = 2,
         y = H,
+        color = "1",
       },
       one = {
         id = IOTA(),
@@ -109,6 +114,7 @@ UI = {
         x = W - 9,
         y = H - 1,
         n = 1,
+        color = CONTROL_BUTTONS_UP_COLOR,
       },
       sixteen = {
         id = IOTA(),
@@ -116,6 +122,7 @@ UI = {
         x = W - 6,
         y = H - 1,
         n = 16,
+        color = CONTROL_BUTTONS_UP_COLOR,
       },
       thirtytwo = {
         id = IOTA(),
@@ -123,6 +130,7 @@ UI = {
         x = W - 2,
         y = H - 1,
         n = 32,
+        color = CONTROL_BUTTONS_UP_COLOR,
       },
       sixtyfour = {
         id = IOTA(),
@@ -130,6 +138,7 @@ UI = {
         x = W - 10,
         y = H,
         n = 64,
+        color = CONTROL_BUTTONS_UP_COLOR,
       },
       onetwentyeight = {
         id = IOTA(),
@@ -137,6 +146,7 @@ UI = {
         x = W - 7,
         y = H,
         n = 128,
+        color = CONTROL_BUTTONS_UP_COLOR,
       },
       fivehundredandtwelve = {
         id = IOTA(),
@@ -144,12 +154,14 @@ UI = {
         x = W - 3,
         y = H,
         n = 512,
+        color = CONTROL_BUTTONS_UP_COLOR,
       },
       refresh = {
         id = IOTA(),
         text = "\x13",
         x = W,
         y = 1,
+        color = "3",
       }
     },
   },
@@ -419,7 +431,7 @@ local function renderControls()
     string.rep("0", #amountRenderStr),
     string.rep("f", #amountRenderStr))
 
-  ---@type {id: number, text: string, x: number, y: number}
+  ---@type {id: number, text: string, x: number, y: number, color: string}
   local tabButton = {}
 
   if UI.tabs.tabActiveId == UI.tabs.player.id then
@@ -428,13 +440,13 @@ local function renderControls()
     tabButton = UI.sendRequestControls.buttons.storage
   end
 
-  ---@param btn {id: number, text: string, x: number, y: number}
+  ---@param btn {id: number, text: string, x: number, y: number, color: string}
   local function renderButton(btn)
     local fg = BUTTON_UNPRESSED_FG
     local bg = BUTTON_UNPRESSED_BG
     if btn.id == UI.sendRequestControls.pressedButtonId then
       fg = BUTTON_PRESSED_FG
-      bg = BUTTON_PRESSED_BG
+      bg = btn.color
     end
 
     term.setCursorPos(btn.x, btn.y)
@@ -519,6 +531,8 @@ local function sendItemFromInv()
     "storage")
 end
 
+MOUSE_BUTTON_LEFT = 1
+MOUSE_BUTTON_RIGHT = 2
 local function processMouseClick(x, y, mouseButton)
 
   UI.focusedId = 0
@@ -590,9 +604,11 @@ local function processMouseClick(x, y, mouseButton)
         UI.sendRequestControls.pressedButtonId = btn.id
 
         local ndiff = btn.n
-        -- right mouse button
-        if mouseButton == 2 then
+        UI.sendRequestControls.buttons[name].color = CONTROL_BUTTONS_UP_COLOR
+
+        if mouseButton == MOUSE_BUTTON_RIGHT then
           ndiff = -ndiff
+          UI.sendRequestControls.buttons[name].color = CONTROL_BUTTONS_DOWN_COLOR
         end
 
         local maxItemAmount = 27 * 64
