@@ -272,6 +272,8 @@ local function renderTabNames()
 end
 
 local function fetchPlayerInventory()
+  UI.tabs.player.focusedItem = 0
+  UI.tabs.player.scroll = 0
   parallel.waitForAll(
     function()
       rednet.send(GLB.server, { code = "GET_PLAYER_INV" }, PROTOCOL)
@@ -287,6 +289,8 @@ local function fetchPlayerInventory()
 end
 
 local function fetchStorage()
+  UI.tabs.storage.focusedItem = 0
+  UI.tabs.storage.scroll = 0
   parallel.waitForAll(
     function()
       rednet.send(GLB.server, { code = "GET_STORAGE" }, PROTOCOL)
@@ -409,7 +413,7 @@ local function renderControls()
     string.rep("0", #amountRenderStr),
     string.rep("f", #amountRenderStr))
 
-  ---@type {id: number, text: string, xStart: number, xEnd: number, y: number}
+  ---@type {id: number, text: string, x: number, y: number}
   local tabButton = {}
 
   if UI.tabs.tabActiveId == UI.tabs.player.id then
@@ -418,7 +422,7 @@ local function renderControls()
     tabButton = UI.sendRequestControls.buttons.storage
   end
 
-  ---@param btn {id: number, text: string, xStart: number, xEnd: number, y: number}
+  ---@param btn {id: number, text: string, x: number, y: number}
   local function renderButton(btn)
     local fg = BUTTON_UNPRESSED_FG
     local bg = BUTTON_UNPRESSED_BG
@@ -427,7 +431,7 @@ local function renderControls()
       bg = BUTTON_PRESSED_BG
     end
 
-    term.setCursorPos(btn.xStart, btn.y)
+    term.setCursorPos(btn.x, btn.y)
     term.blit(
       btn.text,
       string.rep(fg, #btn.text),
@@ -560,7 +564,7 @@ local function processMouseClick(x, y, button)
       invButton = UI.sendRequestControls.buttons.storage
     end
 
-    if y == invButton.y and x >= invButton.xStart and x <= invButton.xEnd then
+    if y == invButton.y and x >= invButton.x and x <= (invButton.x + #invButton.text - 1) then
       UI.sendRequestControls.pressedButtonId = invButton.id
 
       if invButton.id == UI.sendRequestControls.buttons.player.id then
@@ -572,26 +576,26 @@ local function processMouseClick(x, y, button)
       return
     end
 
-    for k, v in pairs(UI.sendRequestControls.buttons) do
-      if k == "player" or k == "storage" then
+    for name, btn in pairs(UI.sendRequestControls.buttons) do
+      if name == "player" or name == "storage" or name == "refresh" then
         goto continue
       end
 
-      if y == v.y and x >= v.xStart and x <= v.xEnd then
-        UI.sendRequestControls.pressedButtonId = v.id
+      if y == btn.y and x >= btn.x and x <= (btn.x + #btn.text - 1) then
+        UI.sendRequestControls.pressedButtonId = btn.id
 
         local ndiff = 0
-        if k == "minus64" then
+        if name == "minus64" then
           ndiff = -64
-        elseif k == "minus32" then
+        elseif name == "minus32" then
           ndiff = -32
-        elseif k == "minus1" then
+        elseif name == "minus1" then
           ndiff = -1
-        elseif k == "plus64" then
+        elseif name == "plus64" then
           ndiff = 64
-        elseif k == "plus32" then
+        elseif name == "plus32" then
           ndiff = 32
-        elseif k == "plus1" then
+        elseif name == "plus1" then
           ndiff = 1
         end
 
@@ -604,6 +608,18 @@ local function processMouseClick(x, y, button)
       ::continue::
     end
 
+    return
+  end
+
+  local refBtn = UI.sendRequestControls.buttons.refresh
+  if y == refBtn.y and x == refBtn.x then
+    UI.sendRequestControls.pressedButtonId = refBtn.id
+
+    if UI.tabs.tabActiveId == UI.tabs.player.id then
+      fetchPlayerInventory()
+    elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
+      fetchStorage()
+    end
     return
   end
 end
