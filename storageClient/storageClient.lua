@@ -18,15 +18,25 @@ WINDOW_BOUNDS = {
   yEnd = H - 2
 }
 
+IOTA_NUM = 0
+
+---@return number
+function IOTA()
+  local ret = IOTA_NUM
+  IOTA_NUM = IOTA_NUM + 1
+
+  return ret
+end
+
 -- ui state
 UI = {
   term = term.current(),
-  focusedId = 1,
+  focusedId = 0,
   tabs = {
-    tabActiveId = 1,
+    tabActiveId = IOTA_NUM,
     y = 4,
     storage = {
-      id = 1,
+      id = IOTA(),
       name = "storage",
       xStart = 2,
       xEnd = math.floor(W / 2),
@@ -45,7 +55,7 @@ UI = {
       focusedItem = 0,
     },
     player = {
-      id = 2,
+      id = IOTA(),
       name = "player",
       xStart = math.floor(W / 2) + 1,
       xEnd = W,
@@ -65,7 +75,7 @@ UI = {
     },
   },
   searchBar = {
-    id = 3,
+    id = IOTA(),
     y = 3,
     prompt = "> ",
     query = "",
@@ -82,67 +92,61 @@ UI = {
     },
     buttons = {
       storage = {
-        id = 4,
+        id = IOTA(),
         text = " Get ",
-        xStart = 2,
-        xEnd = 6,
+        x = 2,
         y = H,
       },
       player = {
-        id = 5,
+        id = IOTA(),
         text = " Send ",
-        xStart = 2,
-        xEnd = 7,
+        x = 2,
         y = H,
       },
       minus64 = {
-        id = 6,
+        id = IOTA(),
         text = "-64",
-        xStart = W - 3,
-        xEnd = W - 1,
+        x = W - 3,
         y = H - 1,
       },
       minus32 = {
-        id = 7,
+        id = IOTA(),
         text = "-32",
-        xStart = W - 7,
-        xEnd = W - 5,
+        x = W - 7,
         y = H - 1,
       },
       minus1 = {
-        id = 8,
+        id = IOTA(),
         text = "-1",
-        xStart = W - 10,
-        xEnd = W - 8,
+        x = W - 10,
         y = H - 1,
       },
       plus1 = {
-        id = 9,
+        id = IOTA(),
         text = "+1",
-        xStart = W - 10,
-        xEnd = W - 8,
+        x = W - 10,
         y = H,
       },
       plus32 = {
-        id = 10,
+        id = IOTA(),
         text = "+32",
-        xStart = W - 7,
-        xEnd = W - 5,
+        x = W - 7,
         y = H,
       },
       plus64 = {
-        id = 11,
+        id = IOTA(),
         text = "+64",
-        xStart = W - 3,
-        xEnd = W - 1,
+        x = W - 3,
         y = H,
       },
+      refresh = {
+        id = IOTA(),
+        text = "\x13",
+        x = W,
+        y = 1,
+      }
     },
   },
-  refreshButton = {
-    x = 0,
-    y = 0,
-  }
 }
 
 local function checkServer()
