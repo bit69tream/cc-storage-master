@@ -672,33 +672,23 @@ end
 
 init()
 
-local function mainLoop()
-  while true do
-    renderUI()
+fetchPlayerInventory()
+fetchStorage()
+UI.tabs.storage.window.setVisible(true)
 
-    local eventData = { os.pullEvent() }
-    local event = eventData[1]
+while true do
+  renderUI()
 
-    if event == "mouse_click" then
-      processMouseClick(eventData[3], eventData[4], eventData[2])
-    elseif event == "mouse_scroll" then
-      processMouseScroll(eventData[2], eventData[3], eventData[4])
-    elseif event == "char" then
-      processChar(eventData[2])
-    elseif event == "key" then
-      processKeyPress(eventData[2])
-    end
+  local eventData = { os.pullEvent() }
+  local event = eventData[1]
+
+  if event == "mouse_click" then
+    processMouseClick(eventData[3], eventData[4], eventData[2])
+  elseif event == "mouse_scroll" then
+    processMouseScroll(eventData[2], eventData[3], eventData[4])
+  elseif event == "char" then
+    processChar(eventData[2])
+  elseif event == "key" then
+    processKeyPress(eventData[2])
   end
 end
-
-
-parallel.waitForAll(
-  function()
-    while true do
-      fetchPlayerInventory()
-      fetchStorage()
-      sleep(3)
-    end
-  end,
-  mainLoop
-)
