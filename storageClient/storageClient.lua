@@ -539,9 +539,6 @@ local function sendItemFromInv()
     "storage")
 
   item.count = item.count - count
-  if item.count <= 0 then
-    table.remove(pl.filteredInventory, pl.focusedItem)
-  end
 end
 
 MOUSE_BUTTON_LEFT = 1
