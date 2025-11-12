@@ -298,10 +298,10 @@ MESSAGE_SWITCH = {
   end,
   ["REQUEST_ITEM"] = function(_, msg)
     ---@type {name: string, nbt: string, peripheral:string, count: number}
-    local itemOrig = msg.data
-    ---@type {name: string, nbt: string, peripheral:string, count: number}
     local item = msg.data
     local storageItems = getFancyItemList()
+
+    local initialCount = item.count
 
     ---@type {slot:number, peripheral: string, count:number}
     local itemsForSending = {}
@@ -339,7 +339,7 @@ MESSAGE_SWITCH = {
       GLB.invManager.addItemToPlayer("up", {})
     end
 
-    sendChatMessage("Delivered " .. itemOrig.count "of [" .. itemOrig.name .. "]")
+    sendChatMessage("Delivered " .. initialCount .. " of [" .. item.name .. "]")
   end,
   ["SEND_FROM_INV"] = function(_, msg)
     local opts = {
