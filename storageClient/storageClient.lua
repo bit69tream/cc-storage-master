@@ -580,6 +580,9 @@ local function processMouseClick(x, y, mouseButton)
 
   if y == UI.searchBar.y then
     UI.focusedId = UI.searchBar.id
+    if mouseButton == MOUSE_BUTTON_RIGHT then
+      UI.searchBar.query = ""
+    end
 
     return
   end
