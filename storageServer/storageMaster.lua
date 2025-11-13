@@ -307,23 +307,11 @@ MESSAGE_SWITCH = {
     local itemsForSending = {}
 
     for i = 1, #storageItems do
-      local found = false
-
       if item.count <= 0 then
         break
       end
 
-      if item.nbt ~= nil then
-        if item.nbt == storageItems[i].nbt and item.name == storageItems[i].name then
-          found = true
-        end
-      else
-        if item.name == storageItems[i].name then
-          found = true
-        end
-      end
-
-      if found then
+      if item.nbt == storageItems[i].nbt and item.name == storageItems[i].name then
         local count = math.min(storageItems[i].count, item.count)
         itemsForSending[#itemsForSending + 1] = {
           slot = storageItems[i].slot,
@@ -341,6 +329,8 @@ MESSAGE_SWITCH = {
 
     sendChatMessage("Delivered " .. initialCount .. " of [" .. item.name .. "]")
   end,
+  // NOTE: to avoid fragmentation we can ask cache servers to send us a list of non-empty but also non-full slots with a particular item
+  // and insert out items into those slots, and only then we will fill the empty slots
   ["SEND_FROM_INV"] = function(_, msg)
     local opts = {
       name = msg.data.name,
