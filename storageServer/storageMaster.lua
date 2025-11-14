@@ -301,8 +301,6 @@ MESSAGE_SWITCH = {
     local item = msg.data
     local storageItems = getFancyItemList()
 
-    local initialCount = item.count
-
     ---@type {slot:number, peripheral: string, count:number}
     local itemsForSending = {}
 
@@ -322,24 +320,44 @@ MESSAGE_SWITCH = {
       end
     end
 
+    local deliveredCount = 0
     for i = 1, #itemsForSending do
+      deliveredCount = deliveredCount + itemsForSending[i].count
       GLB.invBuffer.pullItems(itemsForSending[i].peripheral, itemsForSending[i].slot, itemsForSending[i].count)
       GLB.invManager.addItemToPlayer("up", {})
     end
 
-    sendChatMessage("Delivered " .. initialCount .. " of [" .. item.name .. "]")
+    sendChatMessage("Delivered " .. deliveredCount .. " of [" .. item.name .. "]")
   end,
-  -- NOTE: to avoid fragmentation we can ask cache servers to send us a list of non-empty but also non-full slots with a particular item
-  -- and insert out items into those slots, and only then we will fill the empty slots
+  -- NOTE: to avoid fragmentation we can ask cache servers to send us a list of
+  -- non-empty but also non-full slots with a particular item and insert out
+  -- items into those slots, and only then we will fill the empty slots
   ["SEND_FROM_INV"] = function(_, msg)
-    local opts = {
-      name = msg.data.name,
-      fromSlot = msg.data.slot,
-      count = msg.data.count,
-    }
+    ---@type {name: string, count: number, nbt: string}
+    local opts = msg.data
     print(DUMP(opts))
 
-    GLB.invManager.removeItemFromPlayer("up", opts)
+    ---@type {name: string, nbt: string, count: number, slot: number}[]
+    local playerInv = GLB.invManager.getItems()
+
+    local sentAmount = 0
+    for i = 1, #playerInv do
+      -- for some reason inventory manager sets `nbt` to an empty table value rather that nil
+      if (playerInv[i].nbt == opts.nbt or
+            (#playerInv[i].nbt == 0 and #opts.nbt == 0)) and
+          playerInv[i].name == opts.name then
+        local count = math.min(opts.count, playerInv[i].count)
+        GLB.invManager.removeItemFromPlayer("up", {
+          name = opts.name,
+          count = count,
+          fromSlot = playerInv[i].slot
+        })
+        opts.count = opts.count - count
+        sentAmount = sentAmount + count
+      end
+    end
+
+    -- GLB.invManager.removeItemFromPlayer("up", opts)
 
     local chest = GLB.invBuffer
     assert(chest)
@@ -355,7 +373,7 @@ MESSAGE_SWITCH = {
       end
     end
 
-    sendChatMessage("Received " .. opts.count .. " of [" .. opts.name .. "]")
+    sendChatMessage("Received " .. sentAmount .. " of [" .. opts.name .. "]")
   end
 }
 
