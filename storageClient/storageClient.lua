@@ -525,20 +525,20 @@ local function sendItemFromInv()
   end
 
   local item = pl.filteredInventory[pl.focusedItem]
-  local count = math.min(UI.sendRequestControls.amount.n, item.count)
+  local count = UI.sendRequestControls.amount.n
 
   rednet.send(GLB.server,
     {
       code = "SEND_FROM_INV",
       data = {
-        slot = item.slot,
         count = count,
         name = item.name,
+        nbt = item.nbt,
       }
     },
     "storage")
 
-  item.count = item.count - count
+  item.count = math.min(0, item.count - count)
 end
 
 MOUSE_BUTTON_LEFT = 1
