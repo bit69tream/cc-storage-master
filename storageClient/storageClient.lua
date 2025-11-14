@@ -8,8 +8,8 @@ GLB = {
 
 W, H = term.getSize()
 
-if W < 26 or H < 20 then
-  error("The portable terminal needs to be at least 26x20")
+if W < 26 or H < 19 then
+  error("The portable terminal needs to be at least 26x19")
   os.exit(69)
 end
 
