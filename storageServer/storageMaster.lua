@@ -329,8 +329,8 @@ MESSAGE_SWITCH = {
 
     sendChatMessage("Delivered " .. initialCount .. " of [" .. item.name .. "]")
   end,
-  // NOTE: to avoid fragmentation we can ask cache servers to send us a list of non-empty but also non-full slots with a particular item
-  // and insert out items into those slots, and only then we will fill the empty slots
+  -- NOTE: to avoid fragmentation we can ask cache servers to send us a list of non-empty but also non-full slots with a particular item
+  -- and insert out items into those slots, and only then we will fill the empty slots
   ["SEND_FROM_INV"] = function(_, msg)
     local opts = {
       name = msg.data.name,
