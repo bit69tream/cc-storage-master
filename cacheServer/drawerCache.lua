@@ -87,7 +87,6 @@ parallel.waitForAll(
         STORAGE_PERIPHERALS = peripherals
         print("assigned", DUMP(msg.data))
       elseif msg.code == "GET_ITEMS" then
-        print(DUMP(ITEMS))
         rednet.send(id, { code = "ITEMS_LIST", data = ITEMS }, "cache")
       end
     end

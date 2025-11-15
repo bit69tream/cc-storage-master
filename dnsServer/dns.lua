@@ -12,7 +12,9 @@ PERIPHERAL_NAMES = {
     "create_connected:item_silo_0",
   },
   ["drawer storage"] = {
-    { name = "functionalstorage:oak_1_0", filter = {"minecraft:stone"} },
+    { name = "functionalstorage:oak_2_0", filter = {"minecraft:stone", "minecraft:cobblestone"} },
+    { name = "functionalstorage:oak_1_1", filter = {"minecraft:barrel"} },
+    { name = "functionalstorage:oak_1_3", filter = {"minecraft:andesite"} },
   },
   ["chat box"] = "chatBox_0",
   ["cache servers"] = {},
