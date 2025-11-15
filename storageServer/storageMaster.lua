@@ -4,8 +4,11 @@ PROTOCOL = "storage"
 GLB = {
   -- list of wrapped storage peripherals
   storage = {},
+  ---@type {drawer: table, filter: string[]}[]
+  drawerStorage = {},
   dnsId = 0,
   cacheServers = {},
+  drawerCacheServers = {},
 
   invBuffer = {},
   ---@type {removeItemFromPlayer: function, getItems: function, addItemToPlayer: function}
@@ -130,6 +133,7 @@ end
 
 local function collectStorage()
   MainStorage = {}
+  DrawerStorage = {}
 
   parallel.waitForAll(
     function()
@@ -147,12 +151,64 @@ local function collectStorage()
       MainStorage = msg
     end
   )
-
   print("got main storage from DNS:", DUMP(MainStorage))
+
+  parallel.waitForAll(
+    function()
+      rednet.send(GLB.dnsId, "drawer storage", "dns")
+    end,
+    function()
+      local id, msg = rednet.receive("dns")
+      assert(id)
+
+      if msg == nil or type(msg) ~= "table" or msg == "UNKNOWN" then
+        error("please configure your DNS server for 'main storage'")
+        os.exit(69)
+      end
+
+      DrawerStorage = msg
+    end
+  )
+  print("got drawer storage from DNS:", DUMP(DrawerStorage))
 
   for i = 1, #MainStorage do
     table.insert(GLB.storage, peripheral.wrap(MainStorage[i]))
   end
+
+  for i = 1, #DrawerStorage do
+    table.insert(GLB.drawerStorage, {
+      drawer = peripheral.wrap(DrawerStorage[i].name),
+      filter = DrawerStorage[i].filter
+    })
+  end
+end
+
+local function getDrawerCacheServersFromDNS()
+  while #GLB.drawerCacheServers == 0 do
+    parallel.waitForAll(
+      function()
+        rednet.send(GLB.dnsId, "drawer cache servers", "dns")
+      end,
+      function()
+        ::start::
+        local id, msg = rednet.receive("dns")
+        if id ~= GLB.dnsId then
+          goto start
+        end
+
+        assert(msg)
+
+        if msg.code == "WAITABIT" then
+          return
+        elseif msg.code == "DRAWER_CACHE_SERVERS" then
+          GLB.drawerCacheServers = msg.data
+        end
+      end
+    )
+    sleep(0.1)
+  end
+
+  print("got drawer cache server from DNS:", DUMP(GLB.drawerCacheServers))
 end
 
 local function getCacheServersFromDNS()
@@ -183,7 +239,7 @@ local function getCacheServersFromDNS()
   print("got cache server from DNS:", DUMP(GLB.cacheServers))
 end
 
-local function setupCacheServers()
+local function setupMainCacheServers()
   local servers = GLB.cacheServers
   local storage = GLB.storage
 
@@ -191,7 +247,7 @@ local function setupCacheServers()
   for i = 1, #storage do
     storageSizeSlots = storageSizeSlots + storage[i].size()
   end
-  print("total slots in storage:", storageSizeSlots)
+  print("total slots main in storage:", storageSizeSlots)
 
   local slotsPerServer = storageSizeSlots / #servers
 
@@ -212,12 +268,30 @@ local function setupCacheServers()
           range = range
         },
         "cache")
-      print("cache server", servers[serverIndex], DUMP(range))
+      -- print("cache server", servers[serverIndex], DUMP(range))
 
       currSlot = currSlot + slotsPerServer
       serverIndex = serverIndex + 1
     end
   end
+end
+
+local function setupDrawerCacheServers()
+  local servers = GLB.drawerCacheServers
+  local storage = GLB.drawerStorage
+
+  local drawerNames = {}
+  for i = 1, #storage do
+    drawerNames[#drawerNames + 1] = peripheral.getName(storage[i].drawer)
+  end
+
+  print(DUMP(servers))
+
+  -- let's just go with one server for now
+  assert(#servers == 1)
+
+  rednet.send(servers[1], { code = "SETUP", data = drawerNames }, "cache")
+  print("drawer cache server", servers[1], DUMP(drawerNames))
 end
 
 local function init()
@@ -235,13 +309,15 @@ local function init()
 
   print("getting storage cache servers from DNS:")
   getCacheServersFromDNS()
+  getDrawerCacheServersFromDNS()
 
   term.write("getting storage peripherals from DNS: ")
   collectStorage()
-  print("found " .. #GLB.storage .. " containers in network")
+  print("found " .. #GLB.storage + #GLB.drawerStorage .. " containers in network")
 
   print("setting up cache servers...")
-  setupCacheServers()
+  setupMainCacheServers()
+  setupDrawerCacheServers()
 
   sendChatMessage("Storage initialized successfully")
 end
@@ -252,7 +328,7 @@ local function getFancyItemList()
   local items = {}
 
   rednet.broadcast({ code = "GET_ITEMS" }, "cache")
-  for _ = 1, #GLB.cacheServers do
+  for _ = 1, #GLB.cacheServers + #GLB.drawerCacheServers do
     local id, msg = rednet.receive("cache", 2)
 
     assert(id)
@@ -304,6 +380,8 @@ MESSAGE_SWITCH = {
     ---@type {slot:number, peripheral: string, count:number}
     local itemsForSending = {}
 
+    local invBufferItemLimit = GLB.invBuffer.getItemLimit(1)
+
     for i = 1, #storageItems do
       if item.count <= 0 then
         break
@@ -311,12 +389,18 @@ MESSAGE_SWITCH = {
 
       if item.nbt == storageItems[i].nbt and item.name == storageItems[i].name then
         local count = math.min(storageItems[i].count, item.count)
-        itemsForSending[#itemsForSending + 1] = {
-          slot = storageItems[i].slot,
-          peripheral = storageItems[i].peripheral,
-          count = count,
-        }
-        item.count = item.count - count
+        local slots = math.ceil(count / invBufferItemLimit)
+
+        for s = 1, slots do
+          local slotCount = math.min(count, invBufferItemLimit)
+          itemsForSending[#itemsForSending + 1] = {
+            slot = storageItems[i].slot,
+            peripheral = storageItems[i].peripheral,
+            count = slotCount,
+          }
+          item.count = item.count - slotCount
+          count = count - slotCount
+        end
       end
     end
 
@@ -357,20 +441,36 @@ MESSAGE_SWITCH = {
       end
     end
 
-    -- GLB.invManager.removeItemFromPlayer("up", opts)
-
     local chest = GLB.invBuffer
     assert(chest)
-    for i = 1, chest.size() do
-      if #chest.list() == 0 then
-        break
+    local storage = GLB.storage
+    local drawerStorage = GLB.drawerStorage
+
+    for k, v in pairs(chest.list()) do
+      for j = 1, #drawerStorage do
+        local filter = drawerStorage[j].filter
+        local canInsert = false
+        for f = 1, #filter do
+          if filter[f] == v.name then
+            canInsert = true
+            break
+          end
+        end
+
+        if canInsert then
+          local pushed = chest.pushItems(peripheral.getName(drawerStorage[j].drawer), k)
+          print("pushed", pushed, "into", peripheral.getName(drawerStorage[j].drawer), "from slot", k)
+          goto continue
+        end
       end
 
-      for j = 1, #GLB.storage do
-        if chest.pushItems(peripheral.getName(GLB.storage[j]), i) ~= 0 then
+      for j = 1, #storage do
+        if chest.pushItems(peripheral.getName(storage[j]), k) ~= 0 then
           break
         end
       end
+
+      ::continue::
     end
 
     sendChatMessage("Received " .. sentAmount .. " of [" .. opts.name .. "]")
