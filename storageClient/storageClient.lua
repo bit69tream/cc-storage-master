@@ -687,7 +687,7 @@ local function processKeyPress(key)
   end
 end
 
-local function processMouseScroll(dir, _, y)
+local function processMouseScroll(dir, x, y)
   if y >= WINDOW_BOUNDS.yStart and y <= WINDOW_BOUNDS.yEnd then
     if UI.tabs.tabActiveId == UI.tabs.player.id then
       UI.tabs.player.scroll = clamp(UI.tabs.player.scroll + dir, 0, 27)
@@ -695,6 +695,35 @@ local function processMouseScroll(dir, _, y)
     elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
       UI.tabs.storage.scroll = clamp(UI.tabs.storage.scroll + dir, 0, 4096)
       renderTab("storage")
+    end
+
+    return
+  end
+
+  if y >= UI.sendRequestControls.yStart and y <= UI.sendRequestControls.yEnd then
+    for name, btn in pairs(UI.sendRequestControls.buttons) do
+      if btn.n == nil then
+        goto continue
+      end
+
+      if y == btn.y and x >= btn.x and x <= (btn.x + #btn.text - 1) then
+        UI.sendRequestControls.pressedButtonId = btn.id
+
+        -- scroll up - increase
+        -- scroll down - decrease
+        local ndiff = btn.n * dir * -1
+        UI.sendRequestControls.buttons[name].color = CONTROL_BUTTONS_UP_COLOR
+
+        if ndiff < 0 then
+          UI.sendRequestControls.buttons[name].color = CONTROL_BUTTONS_DOWN_COLOR
+        end
+
+        local maxItemAmount = 27 * 64
+        UI.sendRequestControls.amount.n = clamp(UI.sendRequestControls.amount.n + ndiff, 1, maxItemAmount)
+        break
+      end
+
+      ::continue::
     end
 
     return
