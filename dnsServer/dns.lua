@@ -15,7 +15,8 @@ PERIPHERAL_NAMES = {
     { name = "functionalstorage:oak_2_0", filter = { "minecraft:stone", "minecraft:cobblestone" } },
     { name = "functionalstorage:oak_1_1", filter = { "minecraft:barrel" } },
     { name = "functionalstorage:oak_1_3", filter = { "minecraft:andesite" } },
-    { name = "functionalstorage:oak_4_0", filter = { "minecraft:oak_log", "minecraft:apple", "minecraft:stick", "minecraft:oak_sapling" } }
+    { name = "functionalstorage:oak_4_0", filter = { "minecraft:oak_log", "minecraft:apple", "minecraft:stick", "minecraft:oak_sapling" } },
+    { name = "functionalstorage:oak_1_5", filter = { "minecraft:kelp" } },
   },
   ["chat box"] = "chatBox_0",
   ["cache servers"] = {},

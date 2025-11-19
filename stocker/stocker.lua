@@ -3,7 +3,22 @@ local config = {
     fromPeripheral = peripheral.wrap("functionalstorage:oak_4_0"),
     toPeripheral = peripheral.wrap("functionalstorage:oak_1_4"),
     name = "minecraft:stick",
-  }
+  },
+  {
+    fromPeripheral = peripheral.wrap("functionalstorage:oak_1_5"),
+    toPeripheral = peripheral.wrap("functionalstorage:oak_1_6"),
+    name = "minecraft:kelp",
+  },
+  {
+    fromPeripheral = peripheral.wrap("functionalstorage:oak_1_3"),
+    toPeripheral = peripheral.wrap("functionalstorage:oak_1_7"),
+    name = "minecraft:andesite",
+  },
+  {
+    fromPeripheral = peripheral.wrap("functionalstorage:oak_4_0"),
+    toPeripheral = peripheral.wrap("functionalstorage:oak_1_8"),
+    name = "minecraft:oak_log",
+  },
 }
 
 for i = 1, #config do
