@@ -347,6 +347,72 @@ local function getPlayerInventory()
   return GLB.invManager.getItems()
 end
 
+local function pushEverythingIntoStorage(from)
+  local storage = GLB.storage
+  local drawerStorage = GLB.drawerStorage
+
+  for k, v in pairs(from.list()) do
+    for j = 1, #drawerStorage do
+      local filter = drawerStorage[j].filter
+      local canInsert = false
+      for f = 1, #filter do
+        if filter[f] == v.name then
+          canInsert = true
+          break
+        end
+      end
+
+      if canInsert then
+        local pushed = from.pushItems(peripheral.getName(drawerStorage[j].drawer), k)
+        print("pushed", pushed, "into", peripheral.getName(drawerStorage[j].drawer), "from slot", k)
+        goto continue
+      end
+    end
+
+    for j = 1, #storage do
+      if from.pushItems(peripheral.getName(storage[j]), k) ~= 0 then
+        break
+      end
+    end
+
+    ::continue::
+  end
+end
+
+---@param to table
+---@param item {name: string, nbt: string, count: number}
+---@return {slot:number, peripheral: string, count:number}[]
+local function pullItemFromStorage(to, item)
+  ---@type {slot:number, peripheral: string, count:number}[]
+  local result = {}
+  local storageItems = getFancyItemList()
+  local stackLimit = to.getItemLimit(1)
+
+  for i = 1, #storageItems do
+    if item.count <= 0 then
+      break
+    end
+
+    if item.nbt == storageItems[i].nbt and item.name == storageItems[i].name then
+      local count = math.min(storageItems[i].count, item.count)
+      local slots = math.ceil(count / stackLimit)
+
+      for _ = 1, slots do
+        local slotCount = math.min(count, stackLimit)
+        result[#result + 1] = {
+          slot = storageItems[i].slot,
+          peripheral = storageItems[i].peripheral,
+          count = slotCount,
+        }
+        item.count = item.count - slotCount
+        count = count - slotCount
+      end
+    end
+  end
+
+  return result
+end
+
 init()
 
 MESSAGE_SWITCH = {
@@ -375,34 +441,8 @@ MESSAGE_SWITCH = {
   ["REQUEST_ITEM"] = function(_, msg)
     ---@type {name: string, nbt: string, peripheral:string, count: number}
     local item = msg.data
-    local storageItems = getFancyItemList()
 
-    ---@type {slot:number, peripheral: string, count:number}
-    local itemsForSending = {}
-
-    local invBufferItemLimit = GLB.invBuffer.getItemLimit(1)
-
-    for i = 1, #storageItems do
-      if item.count <= 0 then
-        break
-      end
-
-      if item.nbt == storageItems[i].nbt and item.name == storageItems[i].name then
-        local count = math.min(storageItems[i].count, item.count)
-        local slots = math.ceil(count / invBufferItemLimit)
-
-        for s = 1, slots do
-          local slotCount = math.min(count, invBufferItemLimit)
-          itemsForSending[#itemsForSending + 1] = {
-            slot = storageItems[i].slot,
-            peripheral = storageItems[i].peripheral,
-            count = slotCount,
-          }
-          item.count = item.count - slotCount
-          count = count - slotCount
-        end
-      end
-    end
+    local itemsForSending = pullItemFromStorage(GLB.invBuffer, item)
 
     local deliveredCount = 0
     for i = 1, #itemsForSending do
@@ -443,36 +483,8 @@ MESSAGE_SWITCH = {
 
     local chest = GLB.invBuffer
     assert(chest)
-    local storage = GLB.storage
-    local drawerStorage = GLB.drawerStorage
 
-    for k, v in pairs(chest.list()) do
-      for j = 1, #drawerStorage do
-        local filter = drawerStorage[j].filter
-        local canInsert = false
-        for f = 1, #filter do
-          if filter[f] == v.name then
-            canInsert = true
-            break
-          end
-        end
-
-        if canInsert then
-          local pushed = chest.pushItems(peripheral.getName(drawerStorage[j].drawer), k)
-          print("pushed", pushed, "into", peripheral.getName(drawerStorage[j].drawer), "from slot", k)
-          goto continue
-        end
-      end
-
-      for j = 1, #storage do
-        if chest.pushItems(peripheral.getName(storage[j]), k) ~= 0 then
-          break
-        end
-      end
-
-      ::continue::
-    end
-
+    pushEverythingIntoStorage(chest)
     sendChatMessage("Received " .. sentAmount .. " of [" .. opts.name .. "]")
   end
 }
