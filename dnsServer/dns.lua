@@ -3,6 +3,7 @@ MODEM = nil
 
 CACHE_SERVER_COUNT = 60
 DRAWER_CACHE_SERVER_COUNT = 1
+AUTOCRAFTERS_COUNT = 1
 
 PERIPHERAL_NAMES = {
   ["inventory manager buffer"] = "quark:variant_chest_1",
@@ -21,10 +22,12 @@ PERIPHERAL_NAMES = {
     { name = "functionalstorage:oak_1_10", filter = { "kubejs:kinetic_mechanism" } },
     { name = "functionalstorage:oak_1_11", filter = { "kubejs:precision_mechanism" } },
     { name = "functionalstorage:oak_1_12", filter = { "kubejs:inductive_mechanism" } },
+    { name = "functionalstorage:simple_compacting_drawer_0", filter = { "ae2:fluix_crystal", "ae2:fluix_block" } },
   },
   ["chat box"] = "chatBox_0",
   ["cache servers"] = {},
   ["drawer cache servers"] = {},
+  ["autocrafters"] = {},
 }
 
 function DUMP(o)
@@ -69,6 +72,20 @@ while true do
   if msg == nil then
     rednet.send(id, "UNKNOWN", "dns")
     print(id, DUMP(msg), "UNKNOWN")
+  elseif msg.code == "REGISTER_CRAFTER" then
+    rednet.send(id, { code = "REGISTER_SUCCESS" }, "dns")
+    local registeredAlready = false
+    for i = 1, #PERIPHERAL_NAMES["autocrafters"] do
+      if PERIPHERAL_NAMES["autocrafters"][i] == id then
+        registeredAlready = true
+        break
+      end
+    end
+
+    if not registeredAlready then
+      table.insert(PERIPHERAL_NAMES["autocrafters"], id)
+    end
+    print("registered an autocrafter:", id)
   elseif msg.code == "REGISTER_CACHE" then
     rednet.send(id, { code = "REGISTER_SUCCESS" }, "dns")
     local registeredAlready = false
@@ -103,6 +120,13 @@ while true do
       rednet.send(id, { code = "WAITABIT" }, "dns")
     else
       rednet.send(id, { code = "CACHE_SERVERS", data = servers }, "dns")
+    end
+  elseif msg == "autocrafters" then
+    local servers = PERIPHERAL_NAMES["autocrafters"]
+    if #servers < AUTOCRAFTERS_COUNT then
+      rednet.send(id, { code = "WAITABIT" }, "dns")
+    else
+      rednet.send(id, { code = "AUTOCRAFTERS", data = servers }, "dns")
     end
   elseif msg == "drawer cache servers" then
     local servers = PERIPHERAL_NAMES["drawer cache servers"]
