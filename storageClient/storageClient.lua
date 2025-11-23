@@ -656,23 +656,29 @@ local function processMouseClick(x, y, mouseButton)
 end
 
 local function processChar(c)
-  if UI.focusedId == UI.searchBar.id then
-    UI.searchBar.query = UI.searchBar.query .. c
+  if UI.focusedId ~= UI.searchBar.id then
+    UI.focusedId = UI.searchBar.id
+  end
 
-    if UI.tabs.tabActiveId == UI.tabs.player.id then
-      UI.tabs.player.focusedItem = 0
-      UI.tabs.player.scroll = 0
-      renderTab("player")
-    elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
-      UI.tabs.storage.focusedItem = 0
-      UI.tabs.storage.scroll = 0
-      renderTab("storage")
-    end
+  UI.searchBar.query = UI.searchBar.query .. c
+
+  if UI.tabs.tabActiveId == UI.tabs.player.id then
+    UI.tabs.player.focusedItem = 0
+    UI.tabs.player.scroll = 0
+    renderTab("player")
+  elseif UI.tabs.tabActiveId == UI.tabs.storage.id then
+    UI.tabs.storage.focusedItem = 0
+    UI.tabs.storage.scroll = 0
+    renderTab("storage")
   end
 end
 
 local function processKeyPress(key)
-  if UI.focusedId == UI.searchBar.id and key == keys.backspace then
+  if UI.focusedId ~= UI.searchBar.id then
+    UI.focusedId = UI.searchBar.id
+  end
+
+  if key == keys.backspace then
     UI.searchBar.query = string.sub(UI.searchBar.query, 1, -2)
 
     if UI.tabs.tabActiveId == UI.tabs.player.id then
