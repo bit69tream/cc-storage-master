@@ -4,11 +4,14 @@ PROTOCOL = "storage"
 GLB = {
   -- list of wrapped storage peripherals
   storage = {},
-  ---@type {drawer: table, filter: string[]}[]
+  ---@type {drawer: table, separateCache: boolean|nil, filter: string[]}[]
   drawerStorage = {},
   dnsId = 0,
   cacheServers = {},
   drawerCacheServers = {},
+
+  ---@type {id: number, recipes: string[]}[]
+  autocrafters = {},
 
   invBuffer = {},
   ---@type {removeItemFromPlayer: function, getItems: function, addItemToPlayer: function}
@@ -178,7 +181,8 @@ local function collectStorage()
   for i = 1, #DrawerStorage do
     table.insert(GLB.drawerStorage, {
       drawer = peripheral.wrap(DrawerStorage[i].name),
-      filter = DrawerStorage[i].filter
+      filter = DrawerStorage[i].filter,
+      separateCache = DrawerStorage[i].separateCache,
     })
   end
 end
@@ -280,18 +284,32 @@ local function setupDrawerCacheServers()
   local servers = GLB.drawerCacheServers
   local storage = GLB.drawerStorage
 
+  local separateDrawers = {}
+
   local drawerNames = {}
   for i = 1, #storage do
-    drawerNames[#drawerNames + 1] = peripheral.getName(storage[i].drawer)
+    if storage[i].separateCache then
+      separateDrawers[#separateDrawers + 1] = peripheral.getName(storage[i].drawer)
+    else
+      drawerNames[#drawerNames + 1] = peripheral.getName(storage[i].drawer)
+    end
   end
 
   print(DUMP(servers))
 
-  -- let's just go with one server for now
-  assert(#servers == 1)
+  assert(#servers == 1 + #separateDrawers)
 
-  rednet.send(servers[1], { code = "SETUP", data = drawerNames }, "cache")
-  print("drawer cache server", servers[1], DUMP(drawerNames))
+  for i = 1, #separateDrawers do
+    rednet.send(servers[i], { code = "SETUP", data = { separateDrawers[i] } }, "cache")
+    print("drawer cache server", servers[i], separateDrawers[i])
+  end
+
+  rednet.send(servers[#servers], { code = "SETUP", data = drawerNames }, "cache")
+  print("drawer cache server", servers[#servers], DUMP(drawerNames))
+end
+
+local function getAutocrafters()
+
 end
 
 local function init()
@@ -318,6 +336,9 @@ local function init()
   print("setting up cache servers...")
   setupMainCacheServers()
   setupDrawerCacheServers()
+
+  print("getting crafting computers...")
+  getAutocrafters()
 
   sendChatMessage("Storage initialized successfully")
 end
@@ -437,6 +458,12 @@ MESSAGE_SWITCH = {
   ["GET_PLAYER_INV"] = function(id, _)
     local items = getPlayerInventory()
     rednet.send(id, { code = "PLAYER_INVENTORY", data = items }, PROTOCOL)
+  end,
+  ["PUSH_INTO_STORAGE"] = function(_, msg)
+    local from = peripheral.wrap(msg.peripheral)
+    assert(from)
+
+    pushEverythingIntoStorage(from)
   end,
   ["REQUEST_ITEM"] = function(_, msg)
     ---@type {name: string, nbt: string, peripheral:string, count: number}

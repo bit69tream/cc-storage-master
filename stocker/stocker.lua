@@ -1,8 +1,8 @@
 local config = {
   {
     fromPeripheral = peripheral.wrap("functionalstorage:oak_4_0"),
-    toPeripheral = peripheral.wrap("functionalstorage:oak_1_4"),
-    name = "minecraft:stick",
+    toPeripheral = peripheral.wrap("minecraft:hopper_0"),
+    name = "minecraft:oak_log",
   },
   {
     fromPeripheral = peripheral.wrap("functionalstorage:oak_1_5"),
@@ -18,6 +18,16 @@ local config = {
     fromPeripheral = peripheral.wrap("functionalstorage:oak_4_0"),
     toPeripheral = peripheral.wrap("functionalstorage:oak_1_8"),
     name = "minecraft:oak_log",
+  },
+  {
+    fromPeripheral = peripheral.wrap("functionalstorage:oak_4_0"),
+    toPeripheral = peripheral.wrap("thermal:machine_pyrolyzer_0"),
+    name = "minecraft:oak_log",
+  },
+  {
+    fromPeripheral = peripheral.wrap("functionalstorage:oak_1_14"),
+    toPeripheral = peripheral.wrap("minecraft:barrel_4"),
+    name = "minecraft:sugar_cane",
   },
 }
 
