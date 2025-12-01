@@ -46,9 +46,11 @@ CONFIG = {
 
 GLB = {
   dnsId = 0,
+  server = 0,
   encodingBarrel = nil,
   encodingCrafter = nil,
   craftingBarrel = nil,
+  ---@type {name: string, ingredients: {name: string, count: number}[], output: {name: string, count: number}}[]
   recipes = {},
 }
 
@@ -132,6 +134,25 @@ local function initRednet()
     end
   )
   print("registration successful")
+
+  print("looking for the main server")
+  for _ = 1, 5 do
+    local server = rednet.lookup("storage", "main")
+
+    if server ~= nil then
+      GLB.server = server
+      break
+    end
+
+    term.write(".")
+    sleep(0.1)
+  end
+  if GLB.server == nil then
+    error("Please set the server up first")
+    os.exit(69)
+  end
+
+  print("got main server:", GLB.server)
 end
 
 local function initPeripherals()
@@ -193,10 +214,19 @@ local function saveRecipe(recipe)
   f:close()
 end
 
+
+local function tableLength(tbl)
+  local n = 0
+  for _ in pairs(tbl) do
+    n = n + 1
+  end
+  return n
+end
+
 local function registerRecipe()
   local ingredients = GLB.encodingCrafter.list()
 
-  if #ingredients == 0 then
+  if tableLength(ingredients) == 0 then
     return
   end
 
@@ -207,10 +237,29 @@ local function registerRecipe()
   redstone.setOutput(CONFIG.encodingCrafter, false)
 
   local result = GLB.encodingBarrel.getItemDetail(1)
-  assert(result)
-  print(DUMP(result))
+
+  if result == nil then
+    print("invalid recipe")
+    return
+  end
 
   print("got a recipe for '" .. result.displayName .. "'")
+
+  local alreadyExists = false
+  for i = 1, #GLB.recipes do
+    if GLB.recipes[i].name == result.displayName then
+      alreadyExists = true
+      break
+    end
+  end
+
+  if alreadyExists then
+    print("recipe already exists")
+    return
+  end
+
+  rednet.send(GLB.server, { code = "PUSH_INTO_STORAGE", peripheral = CONFIG.encodingBarrel }, "storage")
+
   saveRecipe({
     name = result.displayName,
     ingredients = ingredients,
@@ -221,21 +270,50 @@ local function registerRecipe()
   })
 end
 
-parallel.waitForAll(
-  function()
-    while true do
-      os.pullEvent("redstone")
-      registerRecipe()
-    end
-  end,
-  function()
-    local config = CONFIG
-    while true do
-      local id, msg = rednet.receive(config.protocol)
-      assert(id)
-      assert(msg)
+MESSAGE_SWITCH = {
+  ["GET_INFO"] = function(id, _)
+    local recipeNames = {}
 
-      -- TODO
+    local recipes = GLB.recipes
+    for i = 1, #recipes do
+      recipeNames[#recipeNames + 1] = recipes[i].name
+    end
+
+    rednet.send(id, {
+      code = "INFO",
+      data = {
+        type = "9x9",
+        recipes = recipeNames,
+      },
+    }, CONFIG.protocol)
+  end
+}
+
+print("listening for events..")
+while true do
+  local event = { os.pullEvent() }
+  assert(event)
+
+  if event[1] == "redstone" then
+    registerRecipe()
+  elseif event[1] == "rednet_message" then
+    local id = event[2]
+    assert(id)
+
+    local msg = event[3]
+
+    local protocol = event[4]
+    if protocol ~= CONFIG.protocol then
+      goto continue
+    end
+
+    if msg ~= nil and MESSAGE_SWITCH[msg.code] ~= nil then
+      print("received message", msg.code, "from", id)
+      MESSAGE_SWITCH[msg.code](id, msg)
+    else
+      print("unsupported message " .. DUMP(msg))
     end
   end
-)
+
+  ::continue::
+end
