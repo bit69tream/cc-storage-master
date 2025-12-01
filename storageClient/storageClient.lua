@@ -658,6 +658,7 @@ end
 local function processChar(c)
   if UI.focusedId ~= UI.searchBar.id then
     UI.focusedId = UI.searchBar.id
+    UI.searchBar.query = ""
   end
 
   UI.searchBar.query = UI.searchBar.query .. c
@@ -676,6 +677,7 @@ end
 local function processKeyPress(key)
   if UI.focusedId ~= UI.searchBar.id then
     UI.focusedId = UI.searchBar.id
+    UI.searchBar.query = ""
   end
 
   if key == keys.backspace then
